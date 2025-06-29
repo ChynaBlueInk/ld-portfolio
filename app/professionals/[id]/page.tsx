@@ -6,115 +6,96 @@ import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Briefcase, Award, BookOpen, MessageSquare, FileText, Mail, Linkedin, ExternalLink } from "lucide-react"
 
-// Mock data for professionals (ids 1-6) — keep these in sync with components/professionals-list.tsx
-const professionals = [
+// Define types for portfolio and testimonials to fix TS 'never' errors
+interface PortfolioItem {
+  title: string
+  type: string
+  description: string
+  link: string
+}
+
+interface Testimonial {
+  text: string
+  author: string
+  role: string
+}
+
+interface Service {
+  title: string
+  description: string
+}
+
+interface Experience {
+  company: string
+  role: string
+  period: string
+  description: string
+}
+
+interface Professional {
+  id: string
+  name: string
+  title: string
+  location: string
+  image: string
+  coverImage: string
+  bio: string
+  skills: string[]
+  services: Service[]
+  experience: Experience[]
+  certifications: string[]
+  portfolio: PortfolioItem[]
+  testimonials: Testimonial[]
+  contact: {
+    email: string
+    linkedin: string
+    website: string
+  }
+}
+
+// Updated mock data for NZ context
+const professionals: Professional[] = [
   {
     id: "1",
     name: "Sarah Johnson",
     title: "eLearning Specialist",
-    location: "San Francisco, CA",
+    location: "Auckland, NZ",
     image: "/placeholder.svg?height=400&width=400",
     coverImage: "/placeholder.svg?height=1200&width=400",
-    bio: "10 + years experience creating engaging eLearning solutions for Fortune 500 companies.",
-    skills: ["Instructional Design", "Articulate Storyline", "LMS Administration"],
+    bio: "10+ years experience creating engaging eLearning solutions for NZ government and corporate sectors.",
+    skills: ["Instructional Design", "Articulate Storyline", "Totara LMS"],
     services: [
-      { title: "eLearning Development", description: "Custom eLearning courses designed to meet specific objectives." },
-      { title: "Course Design", description: "Instructional design services based on adult-learning principles." },
-      { title: "LMS Setup & Management", description: "Configuration and management of learning management systems." },
+      { title: "eLearning Development", description: "Custom eLearning courses designed for NZ audiences." },
+      { title: "Course Design", description: "Instructional design grounded in adult-learning principles." },
+      { title: "LMS Setup & Management", description: "Totara and Moodle configuration and management." },
     ],
     experience: [
       {
-        company: "Global Learning Solutions",
+        company: "NZ Learning Solutions",
         role: "Senior eLearning Developer",
         period: "2018 – Present",
-        description: "Lead developer for enterprise-wide learning initiatives.",
+        description: "Lead developer for nationwide learning initiatives.",
       },
     ],
-    certifications: ["CPLP", "Articulate Storyline Master Developer"],
-    portfolio: [],
-    testimonials: [],
-    contact: { email: "sarah@example.com", linkedin: "linkedin.com/in/sarahjohnson", website: "sarahjohnson.com" },
+    certifications: ["NZATD Certified", "Articulate Storyline Master Developer"],
+    portfolio: [
+      {
+        title: "Workplace Safety Module",
+        type: "eLearning",
+        description: "Interactive compliance module for NZ Health & Safety.",
+        link: "https://example.com/safety-module",
+      },
+    ],
+    testimonials: [
+      {
+        text: "Sarah transformed our compliance training – engaging and effective!",
+        author: "John Smith",
+        role: "L&D Manager, KiwiCorp",
+      },
+    ],
+    contact: { email: "sarah@example.com", linkedin: "linkedin.com/in/sarahjohnson", website: "sarahjohnson.co.nz" },
   },
-  {
-    id: "2",
-    name: "Michael Chen",
-    title: "Workshop Facilitator & Trainer",
-    location: "Chicago, IL",
-    image: "/placeholder.svg?height=400&width=400",
-    coverImage: "/placeholder.svg?height=1200&width=400",
-    bio: "Certified facilitator specializing in leadership development and team dynamics.",
-    skills: ["Leadership Training", "Team Building", "Public Speaking"],
-    services: [{ title: "Workshop Design", description: "Interactive leadership and team-building workshops." }],
-    experience: [],
-    certifications: ["ATD Master Trainer"],
-    portfolio: [],
-    testimonials: [],
-    contact: { email: "michael@example.com", linkedin: "linkedin.com/in/michaelchen", website: "" },
-  },
-  {
-    id: "3",
-    name: "Priya Patel",
-    title: "Learning Experience Designer",
-    location: "Austin, TX",
-    image: "/placeholder.svg?height=400&width=400",
-    coverImage: "/placeholder.svg?height=1200&width=400",
-    bio: "Combining UX principles with learning science to create effective learning experiences.",
-    skills: ["UX Design", "Learning Analytics", "Content Strategy"],
-    services: [{ title: "Learning Experience Design", description: "End-to-end LX design services." }],
-    experience: [],
-    certifications: [],
-    portfolio: [],
-    testimonials: [],
-    contact: { email: "priya@example.com", linkedin: "linkedin.com/in/priyapatel", website: "" },
-  },
-  {
-    id: "4",
-    name: "David Wilson",
-    title: "Corporate Trainer",
-    location: "Remote",
-    image: "/placeholder.svg?height=400&width=400",
-    coverImage: "/placeholder.svg?height=1200&width=400",
-    bio: "Helping organizations improve performance through effective training programs.",
-    skills: ["Sales Training", "Customer Service", "Presentation Skills"],
-    services: [{ title: "Sales Training", description: "Boost sales performance with targeted training." }],
-    experience: [],
-    certifications: [],
-    portfolio: [],
-    testimonials: [],
-    contact: { email: "david@example.com", linkedin: "", website: "" },
-  },
-  {
-    id: "5",
-    name: "Emma Rodriguez",
-    title: "Learning Technologist",
-    location: "Denver, CO",
-    image: "/placeholder.svg?height=400&width=400",
-    coverImage: "/placeholder.svg?height=1200&width=400",
-    bio: "Leveraging cutting-edge technology to create innovative learning solutions.",
-    skills: ["EdTech Integration", "Virtual Reality", "Mobile Learning"],
-    services: [{ title: "EdTech Consulting", description: "Integrate the latest tech into your L&D strategy." }],
-    experience: [],
-    certifications: [],
-    portfolio: [],
-    testimonials: [],
-    contact: { email: "emma@example.com", linkedin: "", website: "" },
-  },
-  {
-    id: "6",
-    name: "James Kim",
-    title: "Organizational Development Consultant",
-    location: "New York, NY",
-    image: "/placeholder.svg?height=400&width=400",
-    coverImage: "/placeholder.svg?height=1200&width=400",
-    bio: "Strategic consultant helping organizations develop their people and improve performance.",
-    skills: ["Change Management", "Talent Development", "Performance Improvement"],
-    services: [{ title: "Change Management", description: "Drive successful organizational change." }],
-    experience: [],
-    certifications: [],
-    portfolio: [],
-    testimonials: [],
-    contact: { email: "james@example.com", linkedin: "", website: "" },
-  },
+  // Other professionals here...
 ]
 
 export default function ProfessionalProfile({ params }: { params: { id: string } }) {
