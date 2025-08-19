@@ -1,182 +1,187 @@
+"use client"
+
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { ArrowRight, BookOpen, Users, Award, Briefcase } from "lucide-react"
+import { useAuth } from "@/app/contexts/AuthContext"
+import { useRouter } from "next/navigation"
 
 export default function Home() {
+  const { user } = useAuth()
+  const router = useRouter()
+
+  const handleCreateProfile = () => {
+    if (user) {
+      router.push("/profile/create")
+    } else {
+      router.push("/signup")
+    }
+  }
+
   return (
-    <div className="bg-white">
-      {/* Hero section */}
-      <div className="relative isolate overflow-hidden">
-        <div className="mx-auto max-w-7xl px-6 py-24 sm:py-32 lg:px-8">
-          <div className="mx-auto max-w-2xl text-center">
-            <h1 className="text-4xl font-bold tracking-tight text-gray-900 sm:text-6xl">
-              Connect with Top Learning & Development Talent
-            </h1>
-            <p className="mt-6 text-lg leading-8 text-gray-600">
-              Find the perfect L&D professional for your business needs. Browse portfolios, skills, and services from
-              top remote talent.
-            </p>
-            <div className="mt-10 flex items-center justify-center gap-x-6">
-              <Link href="/professionals">
-                <Button size="lg" className="rounded-md px-6">
-                  Browse Professionals
-                  <ArrowRight className="ml-2 h-4 w-4" />
-                </Button>
-              </Link>
-              <Link href="/signup">
-                <Button variant="outline" size="lg" className="rounded-md px-6">
-                  Create Your Profile
-                </Button>
-              </Link>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Features section */}
-      <div className="mx-auto max-w-7xl px-6 py-24 sm:py-32 lg:px-8">
-        <div className="mx-auto max-w-2xl lg:text-center">
-          <h2 className="text-base font-semibold leading-7 text-indigo-600">For Businesses</h2>
-          <p className="mt-2 text-3xl font-bold tracking-tight text-gray-900 sm:text-4xl">
-            Find the perfect L&D professional for your needs
+    <div className="bg-[#f9f8f7] text-[#321709]">
+      {/* Hero Section */}
+      <section className="bg-[#A87C6F] py-24 px-6 text-white">
+        <div className="max-w-4xl mx-auto text-center">
+          <h1 className="text-5xl font-extrabold leading-tight sm:text-6xl">
+            Discover Top L&D Talent
+          </h1>
+          <p className="mt-6 text-lg max-w-xl mx-auto text-[#f8f6f6]">
+            Browse portfolios, connect with experts, and find the perfect fit
+            for your learning and development needs.
           </p>
-          <p className="mt-6 text-lg leading-8 text-gray-600">
-            Our platform connects businesses with skilled Learning & Development professionals who can help transform
-            your organization.
-          </p>
-        </div>
-        <div className="mx-auto mt-16 max-w-2xl sm:mt-20 lg:mt-24 lg:max-w-none">
-          <dl className="grid max-w-xl grid-cols-1 gap-x-8 gap-y-16 lg:max-w-none lg:grid-cols-3">
-            <div className="flex flex-col">
-              <dt className="flex items-center gap-x-3 text-base font-semibold leading-7 text-gray-900">
-                <BookOpen className="h-5 w-5 flex-none text-indigo-600" aria-hidden="true" />
-                Specialized Expertise
-              </dt>
-              <dd className="mt-4 flex flex-auto flex-col text-base leading-7 text-gray-600">
-                <p className="flex-auto">
-                  Access professionals with specialized skills in eLearning, workshop design, AI training, LMS setup,
-                  and more.
-                </p>
-              </dd>
-            </div>
-            <div className="flex flex-col">
-              <dt className="flex items-center gap-x-3 text-base font-semibold leading-7 text-gray-900">
-                <Users className="h-5 w-5 flex-none text-indigo-600" aria-hidden="true" />
-                Verified Professionals
-              </dt>
-              <dd className="mt-4 flex flex-auto flex-col text-base leading-7 text-gray-600">
-                <p className="flex-auto">
-                  Browse through curated profiles of verified L&D professionals with proven track records and client
-                  testimonials.
-                </p>
-              </dd>
-            </div>
-            <div className="flex flex-col">
-              <dt className="flex items-center gap-x-3 text-base font-semibold leading-7 text-gray-900">
-                <Award className="h-5 w-5 flex-none text-indigo-600" aria-hidden="true" />
-                Quality Assurance
-              </dt>
-              <dd className="mt-4 flex flex-auto flex-col text-base leading-7 text-gray-600">
-                <p className="flex-auto">
-                  All professionals are vetted to ensure they meet our high standards for quality and expertise.
-                </p>
-              </dd>
-            </div>
-          </dl>
-        </div>
-      </div>
-
-      {/* For professionals section */}
-      <div className="bg-gray-50 py-24 sm:py-32">
-        <div className="mx-auto max-w-7xl px-6 lg:px-8">
-          <div className="mx-auto max-w-2xl lg:text-center">
-            <h2 className="text-base font-semibold leading-7 text-indigo-600">For L&D Professionals</h2>
-            <p className="mt-2 text-3xl font-bold tracking-tight text-gray-900 sm:text-4xl">
-              Showcase your skills and grow your business
-            </p>
-            <p className="mt-6 text-lg leading-8 text-gray-600">
-              Create a professional portfolio that highlights your expertise and connects you with businesses looking
-              for your specific skills.
-            </p>
-          </div>
-          <div className="mx-auto mt-16 max-w-2xl sm:mt-20 lg:mt-24 lg:max-w-none">
-            <dl className="grid max-w-xl grid-cols-1 gap-x-8 gap-y-16 lg:max-w-none lg:grid-cols-3">
-              <div className="flex flex-col">
-                <dt className="flex items-center gap-x-3 text-base font-semibold leading-7 text-gray-900">
-                  <Briefcase className="h-5 w-5 flex-none text-indigo-600" aria-hidden="true" />
-                  Professional Portfolio
-                </dt>
-                <dd className="mt-4 flex flex-auto flex-col text-base leading-7 text-gray-600">
-                  <p className="flex-auto">
-                    Create a comprehensive profile showcasing your skills, experience, services, and portfolio pieces.
-                  </p>
-                </dd>
-              </div>
-              <div className="flex flex-col">
-                <dt className="flex items-center gap-x-3 text-base font-semibold leading-7 text-gray-900">
-                  <Users className="h-5 w-5 flex-none text-indigo-600" aria-hidden="true" />
-                  Business Connections
-                </dt>
-                <dd className="mt-4 flex flex-auto flex-col text-base leading-7 text-gray-600">
-                  <p className="flex-auto">
-                    Connect with businesses looking specifically for your L&D expertise and services.
-                  </p>
-                </dd>
-              </div>
-              <div className="flex flex-col">
-                <dt className="flex items-center gap-x-3 text-base font-semibold leading-7 text-gray-900">
-                  <Award className="h-5 w-5 flex-none text-indigo-600" aria-hidden="true" />
-                  Credibility Building
-                </dt>
-                <dd className="mt-4 flex flex-auto flex-col text-base leading-7 text-gray-600">
-                  <p className="flex-auto">
-                    Display client testimonials and recommendations to build trust with potential clients.
-                  </p>
-                </dd>
-              </div>
-            </dl>
-          </div>
-          <div className="mt-16 flex justify-center">
-            <Link href="/signup">
-              <Button size="lg" className="rounded-md px-6">
-                Create Your Profile
+          <div className="mt-10 flex justify-center gap-4 flex-wrap">
+            <Link href="/professionals">
+              <Button
+                size="lg"
+                className="rounded-full px-6 bg-[#4a3b36] text-white hover:bg-[#a87c6f]"
+              >
+                Browse Professionals
                 <ArrowRight className="ml-2 h-4 w-4" />
               </Button>
             </Link>
+            <Button
+              size="lg"
+              onClick={handleCreateProfile}
+              className="rounded-full px-6 border border-[#4A3B36] text-[#4A3B36] hover:bg-[#Ea87c6f] bg-white"
+            >
+              Create Your Profile
+            </Button>
           </div>
         </div>
-      </div>
+      </section>
 
-      {/* CTA section */}
-      <div className="bg-white">
-        <div className="mx-auto max-w-7xl py-24 sm:px-6 sm:py-32 lg:px-8">
-          <div className="relative isolate overflow-hidden bg-indigo-600 px-6 py-24 text-center shadow-2xl sm:rounded-3xl sm:px-16">
-            <h2 className="mx-auto max-w-2xl text-3xl font-bold tracking-tight text-white sm:text-4xl">
-              Ready to find the perfect match?
-            </h2>
-            <p className="mx-auto mt-6 max-w-xl text-lg leading-8 text-indigo-100">
-              Whether you're a business looking for L&D talent or a professional wanting to showcase your skills, get
-              started today.
-            </p>
-            <div className="mt-10 flex items-center justify-center gap-x-6">
-              <Link href="/professionals">
-                <Button variant="secondary" size="lg" className="rounded-md px-6">
-                  Browse Professionals
-                </Button>
-              </Link>
-              <Link href="/signup">
-                <Button
-                  variant="outline"
-                  size="lg"
-                  className="rounded-md border-white bg-transparent text-white hover:bg-white hover:text-indigo-600 px-6"
-                >
-                  Create Your Profile
-                </Button>
-              </Link>
+      {/* For Businesses */}
+      <section className="py-24 px-6 bg-white">
+        <div className="max-w-7xl mx-auto text-center">
+          <h2 className="text-[#A87C6F] font-semibold text-base tracking-wide">
+            For Businesses
+          </h2>
+          <p className="mt-2 text-4xl font-bold text-[#4A3B36]">
+            Hire Learning & Development Experts
+          </p>
+          <p className="mt-4 text-lg text-gray-700 max-w-3xl mx-auto">
+            Connect with verified professionals in eLearning, instructional
+            design, facilitation, and organisational training.
+          </p>
+        </div>
+        <div className="mt-20 grid grid-cols-1 md:grid-cols-3 gap-12 max-w-6xl mx-auto">
+          {[
+            {
+              icon: <BookOpen className="h-6 w-6 text-[#A8C09D]" />,
+              title: "Specialised Expertise",
+              desc: "Access professionals with skills in eLearning, AI training, LMS setup, workshop design, and more.",
+            },
+            {
+              icon: <Users className="h-6 w-6 text-[#A8C09D]" />,
+              title: "Verified Professionals",
+              desc: "Browse vetted profiles with proven experience and client testimonials.",
+            },
+            {
+              icon: <Award className="h-6 w-6 text-[#A8C09D]" />,
+              title: "Quality Assurance",
+              desc: "All professionals meet our standards for excellence and performance.",
+            },
+          ].map((item, i) => (
+            <div
+              key={i}
+              className="bg-[#F4F1ED] shadow-sm rounded-lg p-6 text-left border border-[#e5ded5]"
+            >
+              <div className="flex items-center gap-3">
+                {item.icon}
+                <h3 className="text-lg font-semibold text-[#4A3B36]">
+                  {item.title}
+                </h3>
+              </div>
+              <p className="mt-3 text-gray-700">{item.desc}</p>
             </div>
+          ))}
+        </div>
+      </section>
+
+      {/* For Professionals */}
+      <section className="bg-[#A8C09D] py-24 px-6 text-[#4A3B36]">
+        <div className="max-w-7xl mx-auto text-center">
+          <h2 className="text-[#4A3B36] font-semibold text-base tracking-wide">
+            For L&D Professionals
+          </h2>
+          <p className="mt-2 text-4xl font-bold">Showcase Your Skills</p>
+          <p className="mt-4 text-lg text-[#3A3A3A] max-w-3xl mx-auto">
+            Build a standout profile, share your expertise, and get discovered
+            by businesses who need your services.
+          </p>
+        </div>
+        <div className="mt-20 grid grid-cols-1 md:grid-cols-3 gap-12 max-w-6xl mx-auto">
+          {[
+            {
+              icon: <Briefcase className="h-6 w-6 text-[#4A3B36]" />,
+              title: "Professional Portfolio",
+              desc: "Highlight your certifications, services, and project experience in one place.",
+            },
+            {
+              icon: <Users className="h-6 w-6 text-[#4A3B36]" />,
+              title: "Direct Connections",
+              desc: "Get matched with clients who value your unique skill set.",
+            },
+            {
+              icon: <Award className="h-6 w-6 text-[#4A3B36]" />,
+              title: "Build Credibility",
+              desc: "Display testimonials and build trust with your ideal clients.",
+            },
+          ].map((item, i) => (
+            <div
+              key={i}
+              className="bg-white shadow-sm rounded-lg p-6 text-left border border-[#dcd4c6]"
+            >
+              <div className="flex items-center gap-3">
+                {item.icon}
+                <h3 className="text-lg font-semibold">{item.title}</h3>
+              </div>
+              <p className="mt-3 text-gray-700">{item.desc}</p>
+            </div>
+          ))}
+        </div>
+        <div className="mt-16 flex justify-center">
+          <Button
+            size="lg"
+            onClick={handleCreateProfile}
+            className="rounded-full px-6 bg-[#a87c6f] text-white hover:bg-[#4a3b36]"
+          >
+            Create Your Profile
+            <ArrowRight className="ml-2 h-4 w-4" />
+          </Button>
+        </div>
+      </section>
+
+      {/* Final CTA */}
+      <section className="bg-[#A87C6F] py-24 px-6 text-white">
+        <div className="max-w-4xl mx-auto text-center">
+          <h2 className="text-4xl font-bold sm:text-5xl">
+            Ready to Get Started?
+          </h2>
+          <p className="mt-4 text-lg max-w-xl mx-auto text-[#F4F1ED]">
+            Whether you’re hiring or looking to be hired, our platform helps you
+            connect and grow.
+          </p>
+          <div className="mt-8 flex justify-center gap-4 flex-wrap">
+            <Link href="/professionals">
+              <Button
+                size="lg"
+                className="rounded-full px-6 bg-white text-[#A87C6F] hover:bg-[#F4F1ED]"
+              >
+                Browse Professionals
+              </Button>
+            </Link>
+            <Button
+              size="lg"
+              onClick={handleCreateProfile}
+              className="rounded-full px-6 bg-white text-[#A87C6F] hover:bg-[#F4F1ED]"
+            >
+              Create Your Profile
+            </Button>
           </div>
         </div>
-      </div>
+      </section>
     </div>
   )
 }

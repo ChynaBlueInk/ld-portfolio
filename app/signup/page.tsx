@@ -1,5 +1,5 @@
 import Link from "next/link"
-import ProfileForm from "@/components/profile-form"
+import SignupClient from "./SignupClient"
 
 export const metadata = {
   title: "Create Your Profile | L&D Talent Hub",
@@ -7,7 +7,7 @@ export const metadata = {
     "Create your professional profile on L&D Talent Hub. Showcase your skills, experience, and services to connect with businesses looking for L&D talent.",
 }
 
-export default function SignupPage() {
+export default function Page() {
   return (
     <div className="bg-white">
       <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
@@ -16,12 +16,12 @@ export default function SignupPage() {
             Create Your Professional Profile
           </h1>
           <p className="mx-auto max-w-2xl text-lg text-gray-600">
-            Showcase your skills, experience, and services to connect with businesses looking for L&D talent.
+            Showcase your skills, experience, and services to connect with businesses looking for L&amp;D talent.
           </p>
         </div>
 
         <div className="mt-12">
-          <ProfileForm />
+          <SignupClient />
         </div>
 
         <div className="mt-12 text-center">

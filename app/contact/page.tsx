@@ -19,22 +19,22 @@ export default function ContactPage() {
               soon as possible.
             </p>
             <div className="mt-8 space-y-6">
-              <div className="flex items-center">
-                <Mail className="h-6 w-6 text-indigo-600" />
-                <span className="ml-3 text-base text-gray-600">support@ldtalenthub.com</span>
-              </div>
-              <div className="flex items-center">
-                <Phone className="h-6 w-6 text-indigo-600" />
-                <span className="ml-3 text-base text-gray-600">+1 (555) 123-4567</span>
-              </div>
-              <div className="flex items-center">
-                <MapPin className="h-6 w-6 text-indigo-600" />
-                <span className="ml-3 text-base text-gray-600">
-                  123 Learning Lane
-                  <br />
-                  San Francisco, CA 94103
-                </span>
-              </div>
+  <div className="flex items-center">
+    <Mail className="h-6 w-6 text-primary" />
+    <span className="ml-3 text-base text-muted-foreground">chynablueink@gmail.com</span>
+  </div>
+  <div className="flex items-center">
+    <Phone className="h-6 w-6 text-primary" />
+    <span className="ml-3 text-base text-muted-foreground">WhatsApp +64 (27) 818-3098</span>
+  </div>
+  <div className="flex items-center">
+    <MapPin className="h-6 w-6 text-primary" />
+    <span className="ml-3 text-base text-muted-foreground">
+      4 Byrd Street
+      <br />
+      Levin, Horowhenua, NZ 5510
+    </span>
+  </div>
             </div>
           </div>
           <div className="mt-12 md:mt-0">
