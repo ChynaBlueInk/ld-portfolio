@@ -1,11 +1,7 @@
-"use client"
-
+// app/talent-requests/new/page.tsx  (no "use client" here)
 import Link from "next/link"
-import { useRouter } from "next/navigation"
-import { useEffect } from "react"
-import NewTalentRequestForm from "@/components/new-talent-request-form"
 import { ArrowLeft } from "lucide-react"
-import { useAuth } from "@/app/contexts/AuthContext"
+import NewTalentRequestClient from "./NewTalentRequestClient"
 
 export const metadata = {
   title: "Post a Talent Request | L&D Talent Hub",
@@ -13,29 +9,7 @@ export const metadata = {
     "Post a talent request to find Learning & Development professionals for your business needs. Describe your project or position and connect with qualified L&D talent.",
 }
 
-export default function PostTalentRequestPage() {
-  const router = useRouter()
-  const { user } = useAuth()
-
-  useEffect(() => {
-    if (!user) {
-      // Not logged in → login first
-      router.push("/login")
-    } else if (user.role !== "Employer") {
-      // Logged in but not Employer → redirect back
-      alert("Only Employers can post a talent request.")
-      router.push("/talent-requests")
-    }
-  }, [user, router])
-
-  if (!user || user.role !== "Employer") {
-    return (
-      <div className="max-w-2xl mx-auto mt-20 text-center">
-        <p className="text-gray-600">Redirecting...</p>
-      </div>
-    )
-  }
-
+export default function Page() {
   return (
     <div className="bg-white">
       <div className="mx-auto max-w-3xl px-4 py-12 sm:px-6 lg:px-8">
@@ -55,13 +29,14 @@ export default function PostTalentRequestPage() {
               Post a Talent Request
             </h1>
             <p className="mt-4 text-lg text-gray-600">
-              Describe your L&D project or position and connect with qualified professionals who have the skills you
+              Describe your L&amp;D project or position and connect with qualified professionals who have the skills you
               need.
             </p>
           </div>
 
           <div className="mt-10">
-            <NewTalentRequestForm />
+            {/* All client logic (auth + router + hooks) lives in here */}
+            <NewTalentRequestClient />
           </div>
         </div>
       </div>
