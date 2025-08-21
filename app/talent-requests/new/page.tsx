@@ -1,9 +1,8 @@
-// app/talent-requests/new/page.tsx
+// app/talent-requests/new/page.tsx  (SERVER component – no "use client")
 import Link from "next/link"
 import { ArrowLeft } from "lucide-react"
 import NewTalentRequestClient from "./NewTalentRequestClient"
 
-// ✅ OK on a server file
 export const metadata = {
   title: "Post a Talent Request | L&D Talent Hub",
   description:
@@ -35,7 +34,7 @@ export default function Page() {
           </div>
 
           <div className="mt-10">
-            {/* All hooks/redirects live in the client wrapper */}
+            {/* All client logic (useAuth/useRouter/useEffect) lives in the client file */}
             <NewTalentRequestClient />
           </div>
         </div>

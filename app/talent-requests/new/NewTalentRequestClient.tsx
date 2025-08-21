@@ -1,4 +1,3 @@
-// app/talent-requests/new/NewTalentRequestClient.tsx
 "use client"
 
 import { useEffect } from "react"
