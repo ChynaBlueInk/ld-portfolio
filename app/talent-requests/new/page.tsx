@@ -1,4 +1,4 @@
-// app/talent-requests/new/page.tsx  (SERVER component – no "use client")
+// app/talent-requests/new/page.tsx  (SERVER component)
 import Link from "next/link"
 import { ArrowLeft } from "lucide-react"
 import NewTalentRequestClient from "./NewTalentRequestClient"
@@ -34,7 +34,7 @@ export default function Page() {
           </div>
 
           <div className="mt-10">
-            {/* All client logic (useAuth/useRouter/useEffect) lives in the client file */}
+            {/* All hooks/redirects live in the client wrapper */}
             <NewTalentRequestClient />
           </div>
         </div>
