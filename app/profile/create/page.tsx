@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
-import { useAuth } from "@/app/contexts/AuthContext"
+import { useAuth } from "@/contexts/AuthContext"
 
 export default function CreateProfilePage() {
   const { user } = useAuth()

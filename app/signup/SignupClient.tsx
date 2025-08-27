@@ -6,7 +6,7 @@ import {
   CognitoIdentityProviderClient,
   SignUpCommand,
 } from "@aws-sdk/client-cognito-identity-provider"
-import { useAuth } from "@/app/contexts/AuthContext"
+import { useAuth } from "@/contexts/AuthContext"
 import ProfileForm from "@/components/profile-form"
 
 const REGION = process.env.NEXT_PUBLIC_COGNITO_REGION || ""

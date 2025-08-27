@@ -1,3 +1,4 @@
+// components/profile-form.tsx
 "use client"
 
 import { useState } from "react"
@@ -5,8 +6,17 @@ import { useRouter } from "next/navigation"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm } from "react-hook-form"
 import { z } from "zod"
+
 import { Button } from "@/components/ui/button"
-import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
+import {
+  Form,
+  FormControl,
+  FormDescription,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -16,29 +26,15 @@ import { Badge } from "@/components/ui/badge"
 import { X, Plus, Upload } from "lucide-react"
 
 const profileFormSchema = z.object({
-  firstName: z.string().min(2, {
-    message: "First name must be at least 2 characters.",
-  }),
-  lastName: z.string().min(2, {
-    message: "Last name must be at least 2 characters.",
-  }),
-  email: z.string().email({
-    message: "Please enter a valid email address.",
-  }),
-  title: z.string().min(2, {
-    message: "Professional title must be at least 2 characters.",
-  }),
-  location: z.string().min(2, {
-    message: "Location must be at least 2 characters.",
-  }),
+  firstName: z.string().min(2, { message: "First name must be at least 2 characters." }),
+  lastName: z.string().min(2, { message: "Last name must be at least 2 characters." }),
+  email: z.string().email({ message: "Please enter a valid email address." }),
+  title: z.string().min(2, { message: "Professional title must be at least 2 characters." }),
+  location: z.string().min(2, { message: "Location must be at least 2 characters." }),
   bio: z
     .string()
-    .min(50, {
-      message: "Bio must be at least 50 characters.",
-    })
-    .max(500, {
-      message: "Bio must not be longer than 500 characters.",
-    }),
+    .min(50, { message: "Bio must be at least 50 characters." })
+    .max(500, { message: "Bio must not be longer than 500 characters." }),
   linkedin: z.string().optional(),
   website: z.string().optional(),
 })
@@ -70,7 +66,6 @@ export default function ProfileForm() {
 
   function onSubmit(data: ProfileFormValues) {
     console.log({ ...data, skills, services })
-    // In a real app, you would send this data to your backend
     router.push("/professionals")
   }
 
@@ -99,15 +94,15 @@ export default function ProfileForm() {
 
   return (
     <div className="mx-auto max-w-3xl">
-      <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="grid w-full grid-cols-3">
-          <TabsTrigger value="basic">Basic Info</TabsTrigger>
-          <TabsTrigger value="skills">Skills & Services</TabsTrigger>
-          <TabsTrigger value="portfolio">Portfolio & Experience</TabsTrigger>
-        </TabsList>
+      <Form {...form}>
+        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
+          <Tabs value={activeTab} onValueChange={setActiveTab}>
+            <TabsList className="grid w-full grid-cols-3">
+              <TabsTrigger value="basic">Basic Info</TabsTrigger>
+              <TabsTrigger value="skills">Skills & Services</TabsTrigger>
+              <TabsTrigger value="portfolio">Portfolio & Experience</TabsTrigger>
+            </TabsList>
 
-        <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
             <TabsContent value="basic" className="mt-6 space-y-6">
               <Card>
                 <CardHeader>
@@ -237,7 +232,7 @@ export default function ProfileForm() {
                   <div>
                     <div className="mb-2 block text-sm font-medium">Profile Picture</div>
                     <div className="mt-2 flex items-center gap-x-3">
-                      <div className="h-12 w-12 rounded-full bg-gray-300"></div>
+                      <div className="h-12 w-12 rounded-full bg-gray-300" />
                       <Button type="button" variant="outline" size="sm">
                         <Upload className="mr-2 h-4 w-4" />
                         Upload
@@ -381,9 +376,8 @@ export default function ProfileForm() {
                   <CardDescription>Add the services you offer to potential clients.</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-6">
-                  <div className="space-y-4"></div>
-
-                  <div className="space-y-4"></div>
+                  <div className="space-y-4" />
+                  <div className="space-y-4" />
                 </CardContent>
                 <CardFooter className="flex justify-between">
                   <Button type="button" variant="outline" onClick={() => setActiveTab("basic")}>
@@ -524,9 +518,9 @@ export default function ProfileForm() {
                 </CardFooter>
               </Card>
             </TabsContent>
-          </form>
-        </Form>
-      </Tabs>
+          </Tabs>
+        </form>
+      </Form>
     </div>
   )
 }

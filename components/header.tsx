@@ -1,57 +1,56 @@
-"use client"
+"use client";
 
-import { useEffect, useState } from "react"
-import Link from "next/link"
-import { usePathname } from "next/navigation"
-import { Menu, X } from "lucide-react"
-import { useAuth } from "@/app/contexts/AuthContext"
+import { useEffect, useState } from "react";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { Menu, X } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
 
+// base links everyone sees
 const navigation = [
   { name: "Home", href: "/" },
   { name: "Browse Professionals", href: "/browse" },
   { name: "Talent Requests", href: "/talent-requests" },
   { name: "How It Works", href: "/how-it-works" },
   { name: "Contact", href: "/contact" },
-]
+];
+
+// extra links for logged-in users
+const authedNavigation = [
+  { name: "Dashboard", href: "/dashboard" },
+  { name: "My Profile", href: "/profile" },
+];
 
 export default function Header() {
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
-  const pathname = usePathname()
-  const { user, logout } = useAuth()
-  const [profileComplete, setProfileComplete] = useState(true)
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const pathname = usePathname();
+  const { user, logout } = useAuth();
+  const [profileComplete, setProfileComplete] = useState(true);
 
-  // Check if profile is complete (Basic Info + Contact Info required)
+  // Check profile completeness
   useEffect(() => {
     const checkProfile = async () => {
       if (user) {
         try {
-          const res = await fetch(`/api/users?userID=${encodeURIComponent(user.userID || user.email)}`)
-        if (res.ok) {
-          const profile = await res.json()
-
-          const hasBasics =
-            profile.fullName &&
-            profile.title &&
-            profile.location &&
-            profile.bio
-
-          const hasContact =
-            profile.contact &&
-            profile.contact.email
-
-          if (hasBasics && hasContact) {
-            setProfileComplete(true)
+          const res = await fetch(
+            `/api/users?userID=${encodeURIComponent(user.userID || user.email)}`
+          );
+          if (res.ok) {
+            const profile = await res.json();
+            const hasBasics =
+              profile.fullName && profile.title && profile.location && profile.bio;
+            const hasContact = profile.contact && profile.contact.email;
+            setProfileComplete(!!(hasBasics && hasContact));
           } else {
-            setProfileComplete(false)
+            setProfileComplete(false);
           }
+        } catch {
+          setProfileComplete(false);
         }
-      } catch (error) {
-        setProfileComplete(false)
       }
-    }
-  }
-  checkProfile()
-}, [user])
+    };
+    checkProfile();
+  }, [user]);
 
   return (
     <header className="bg-white shadow-sm">
@@ -59,11 +58,11 @@ export default function Header() {
         className="mx-auto flex max-w-7xl items-center justify-between p-6 lg:px-8"
         aria-label="Global"
       >
-        {/* Logo */}
+        {/* Logo / Brand */}
         <div className="flex lg:flex-1">
           <Link href="/" className="-m-1.5 p-1.5">
             <span className="sr-only">L&D Talent Hub</span>
-            <h1 className="text-xl font-bold text-indigo-600">
+            <h1 className="text-2xl font-bold text-indigo-600">
               L&D Talent Hub
             </h1>
           </Link>
@@ -77,17 +76,17 @@ export default function Header() {
             onClick={() => setMobileMenuOpen(true)}
           >
             <span className="sr-only">Open main menu</span>
-            <Menu className="h-6 w-6" aria-hidden="true" />
+            <Menu className="h-7 w-7" aria-hidden="true" />
           </button>
         </div>
 
         {/* Desktop nav links */}
-        <div className="hidden lg:flex lg:gap-x-12">
+        <div className="hidden lg:flex lg:gap-x-10">
           {navigation.map((item) => (
             <Link
               key={item.name}
               href={item.href}
-              className={`text-sm font-semibold leading-6 ${
+              className={`text-lg font-semibold ${
                 pathname === item.href
                   ? "text-indigo-600"
                   : "text-gray-900 hover:text-indigo-600"
@@ -96,13 +95,28 @@ export default function Header() {
               {item.name}
             </Link>
           ))}
+
+          {user &&
+            authedNavigation.map((item) => (
+              <Link
+                key={item.name}
+                href={item.href}
+                className={`text-lg font-semibold ${
+                  pathname === item.href
+                    ? "text-indigo-600"
+                    : "text-gray-900 hover:text-indigo-600"
+                }`}
+              >
+                {item.name}
+              </Link>
+            ))}
         </div>
 
         {/* Desktop auth buttons */}
         <div className="hidden lg:flex lg:flex-1 lg:justify-end lg:gap-x-4">
           {user ? (
             <>
-              <span className="text-sm text-gray-700 flex items-center gap-2">
+              <span className="text-lg text-gray-700 flex items-center gap-2">
                 {user.fullName || user.email}
                 {!profileComplete && (
                   <Link
@@ -115,7 +129,7 @@ export default function Header() {
               </span>
               <button
                 onClick={logout}
-                className="rounded bg-red-500 px-4 py-2 text-white hover:bg-red-600"
+                className="rounded bg-red-500 px-4 py-2 text-white hover:bg-red-600 text-lg"
               >
                 Logout
               </button>
@@ -123,12 +137,12 @@ export default function Header() {
           ) : (
             <>
               <Link href="/login">
-                <button className="rounded border border-gray-300 px-4 py-2 text-gray-700 hover:bg-gray-100">
+                <button className="rounded border border-gray-300 px-4 py-2 text-gray-700 hover:bg-gray-100 text-lg">
                   Log in
                 </button>
               </Link>
               <Link href="/signup">
-                <button className="rounded bg-indigo-600 px-4 py-2 text-white hover:bg-indigo-500">
+                <button className="rounded bg-indigo-600 px-4 py-2 text-white hover:bg-indigo-500 text-lg">
                   Sign up
                 </button>
               </Link>
@@ -165,7 +179,7 @@ export default function Header() {
                     <Link
                       key={item.name}
                       href={item.href}
-                      className={`-mx-3 block rounded-lg px-3 py-2 text-base font-semibold leading-7 ${
+                      className={`-mx-3 block rounded-lg px-3 py-2 text-lg font-semibold leading-7 ${
                         pathname === item.href
                           ? "text-indigo-600"
                           : "text-gray-900 hover:text-indigo-600"
@@ -175,11 +189,26 @@ export default function Header() {
                       {item.name}
                     </Link>
                   ))}
+                  {user &&
+                    authedNavigation.map((item) => (
+                      <Link
+                        key={item.name}
+                        href={item.href}
+                        className={`-mx-3 block rounded-lg px-3 py-2 text-lg font-semibold leading-7 ${
+                          pathname === item.href
+                            ? "text-indigo-600"
+                            : "text-gray-900 hover:text-indigo-600"
+                        }`}
+                        onClick={() => setMobileMenuOpen(false)}
+                      >
+                        {item.name}
+                      </Link>
+                    ))}
                 </div>
                 <div className="py-6 space-y-2">
                   {user ? (
                     <>
-                      <p className="px-3 py-2 text-base font-semibold text-gray-700 flex items-center gap-2">
+                      <p className="px-3 py-2 text-lg font-semibold text-gray-700 flex items-center gap-2">
                         {user.fullName || user.email}
                         {!profileComplete && (
                           <Link
@@ -193,10 +222,10 @@ export default function Header() {
                       </p>
                       <button
                         onClick={() => {
-                          logout()
-                          setMobileMenuOpen(false)
+                          logout();
+                          setMobileMenuOpen(false);
                         }}
-                        className="-mx-3 block w-full rounded-lg bg-red-500 px-3 py-2.5 text-base font-semibold text-white hover:bg-red-600"
+                        className="-mx-3 block w-full rounded-lg bg-red-500 px-3 py-2.5 text-lg font-semibold text-white hover:bg-red-600"
                       >
                         Logout
                       </button>
@@ -205,14 +234,14 @@ export default function Header() {
                     <>
                       <Link
                         href="/login"
-                        className="-mx-3 block rounded-lg px-3 py-2.5 text-base font-semibold leading-7 text-gray-900 hover:bg-gray-50"
+                        className="-mx-3 block rounded-lg px-3 py-2.5 text-lg font-semibold leading-7 text-gray-900 hover:bg-gray-50"
                         onClick={() => setMobileMenuOpen(false)}
                       >
                         Log in
                       </Link>
                       <Link
                         href="/signup"
-                        className="-mx-3 block rounded-lg bg-indigo-600 px-3 py-2.5 text-base font-semibold leading-7 text-white hover:bg-indigo-500"
+                        className="-mx-3 block rounded-lg bg-indigo-600 px-3 py-2.5 text-lg font-semibold leading-7 text-white hover:bg-indigo-500"
                         onClick={() => setMobileMenuOpen(false)}
                       >
                         Sign up
@@ -226,5 +255,5 @@ export default function Header() {
         </div>
       )}
     </header>
-  )
+  );
 }

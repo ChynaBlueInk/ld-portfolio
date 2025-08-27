@@ -7,7 +7,7 @@ import {
   SignUpCommand,
   SignUpCommandOutput,
 } from "@aws-sdk/client-cognito-identity-provider"
-import { useAuth } from "@/app/contexts/AuthContext"
+import { useAuth } from "@/contexts/AuthContext"
 
 type Env = {
   NEXT_PUBLIC_COGNITO_REGION?: string

@@ -6,7 +6,7 @@ import { cva } from "class-variance-authority"
 import { ChevronDown } from "lucide-react"
 import { cn } from "@/lib/utils"
 import Link from "next/link"
-import { useAuth } from "@/app/contexts/AuthContext"
+import { useAuth } from "@/contexts/AuthContext"
 import { useEffect, useState } from "react"
 
 const NavigationMenu = React.forwardRef<

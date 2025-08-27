@@ -2,7 +2,7 @@
 
 import { useEffect } from "react"
 import { useRouter } from "next/navigation"
-import { useAuth } from "@/app/contexts/AuthContext"
+import { useAuth } from "@/contexts/AuthContext"
 import NewTalentRequestForm from "@/components/new-talent-request-form"
 
 export default function NewTalentRequestClient() {
