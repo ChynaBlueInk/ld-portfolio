@@ -1,151 +1,322 @@
-"use client"
+"use client";
 
-import { useRef, useState } from "react"
-import { useRouter } from "next/navigation"
+import { useState } from "react";
+import { useRouter } from "next/navigation";
 import {
   CognitoIdentityProviderClient,
   SignUpCommand,
-} from "@aws-sdk/client-cognito-identity-provider"
-import { useAuth } from "@/contexts/AuthContext"
-import ProfileForm from "@/components/profile-form"
+} from "@aws-sdk/client-cognito-identity-provider";
+import ResumeImporter from "@/components/ResumeImporter";
 
-const REGION = process.env.NEXT_PUBLIC_COGNITO_REGION || ""
-const CLIENT_ID = process.env.NEXT_PUBLIC_COGNITO_CLIENT_ID || ""
+type Parsed = {
+  fullName?: string; email?: string; phone?: string;
+  headline?: string; location?: string; links?: string[];
+  skills?: string[]; summary?: string;
+  currentRole?: string; currentCompany?: string;
+};
 
-// Helper: try several common keys for the same concept
-function firstFilled(fd: FormData, keys: string[], fallback = ""): string {
-  for (const k of keys) {
-    const v = fd.get(k)
-    if (typeof v === "string" && v.trim()) return v.trim()
-  }
-  return fallback
-}
+// ⬇️ Replace with your real IDs (client ID is safe on client)
+const REGION = "ap-southeast-2";
+const CLIENT_ID = process.env.NEXT_PUBLIC_COGNITO_CLIENT_ID || "YOUR_CLIENT_ID"; // e.g. 6bpvj6dq1kalujdu7mdieujtfl
+
+const cognito = new CognitoIdentityProviderClient({ region: REGION });
 
 export default function SignupClient() {
-  const formRef = useRef<HTMLFormElement>(null)
-  const [error, setError] = useState<string>("")
-  const [loading, setLoading] = useState(false)
-  const router = useRouter()
-  const { setUser } = useAuth()
+  const router = useRouter();
 
-  const client = new CognitoIdentityProviderClient({ region: REGION })
+  // Auth basics
+  const [fullName, setFullName] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
 
-  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault()
-    setError("")
-    setLoading(true)
+  // Profile fields (prefill targets)
+  const [title, setTitle] = useState("");
+  const [location, setLocation] = useState("");
+  const [bio, setBio] = useState("");
+  const [image, setImage] = useState("");
+  const [region, setRegion] = useState("");
+  const [linkedin, setLinkedin] = useState("");
+  const [website, setWebsite] = useState("");
 
-    if (!REGION || !CLIENT_ID) {
-      setLoading(false)
-      setError("Cognito not configured. Set NEXT_PUBLIC_COGNITO_REGION and NEXT_PUBLIC_COGNITO_CLIENT_ID.")
-      return
+  const [agree, setAgree] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState<string | null>(null);
+
+  // Prefill from resume
+  const onPrefill = (d: Parsed) => {
+    if (d.fullName && !fullName) setFullName(d.fullName);
+    if (d.email && !email) setEmail(d.email);
+    if (d.headline) setTitle(d.headline);
+    if (!d.headline && d.currentRole) setTitle(d.currentRole);
+    if (d.location) setLocation(d.location);
+    if (d.summary) setBio(d.summary);
+  };
+
+  const handleSignup = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setMsg(null);
+
+    if (!CLIENT_ID || CLIENT_ID === "YOUR_CLIENT_ID") {
+      setMsg("Cognito Client ID is missing. Set NEXT_PUBLIC_COGNITO_CLIENT_ID.");
+      return;
     }
+    if (!agree) {
+      setMsg("Please accept the terms to continue.");
+      return;
+    }
+    setBusy(true);
 
     try {
-      const fd = new FormData(e.currentTarget)
+      // 1) Create the Cognito user
+      const signup = new SignUpCommand({
+        ClientId: CLIENT_ID,
+        Username: email,
+        Password: password,
+        UserAttributes: [
+          { Name: "name", Value: fullName },
+          { Name: "email", Value: email },
+          // You can add custom attrs once defined in your pool, e.g. "custom:role"
+        ],
+      });
 
-      // Pull core values from whatever names your form uses
-      const fullName =
-        firstFilled(fd, ["fullName", "name"]) ||
-        `${firstFilled(fd, ["firstName"])} ${firstFilled(fd, ["lastName"])}`.trim()
+      const out = await cognito.send(signup);
+      const userSub = out.UserSub || ""; // The unique Cognito user ID
 
-      const email = firstFilled(fd, ["email", "userEmail"])
-      const password = firstFilled(fd, ["password", "pass", "userPassword"])
-      const role = firstFilled(fd, ["role", "userRole"], "Employee")
-      const region = firstFilled(fd, ["region", "location", "country"], "New Zealand")
+      // 2) Try to save profile now (OK if your /api/users allows this pre-verification)
+      // If it fails due to auth, we’ll save as a local draft.
+      const profile = {
+        userID: userSub || email, // fallback to email if sub unavailable
+        email,
+        fullName,
+        role: "", // optional, set later if needed
+        title,
+        location,
+        bio,
+        image,
+        region,
+        linkedin,
+        website,
+      };
 
-      if (!fullName || !email || !password) {
-        throw new Error("Full name, email, and password are required.")
+      let savedNow = false;
+      try {
+        const res = await fetch("/api/users", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(profile),
+        });
+        savedNow = res.ok;
+      } catch {
+        savedNow = false;
       }
 
-      // Sign up with Cognito
-      const res = await client.send(
-        new SignUpCommand({
-          ClientId: CLIENT_ID,
-          Username: email,
-          Password: password,
-          UserAttributes: [
-            { Name: "name", Value: fullName },
-            { Name: "email", Value: email },
-          ],
-        })
-      )
-
-      const userID = res.UserSub || ""
-
-      // Include ALL remaining string fields from the form in the payload
-      const knownKeys = new Set([
-        "fullName", "name", "firstName", "lastName",
-        "email", "userEmail",
-        "password", "pass", "userPassword",
-        "role", "userRole",
-        "region", "location", "country",
-      ])
-
-      const extras: Record<string, string> = {}
-      for (const [k, v] of fd.entries()) {
-        if (knownKeys.has(k)) continue
-        if (typeof v === "string") extras[k] = v
+      if (!savedNow) {
+        // Store draft; your /profile/create page can read and post it after login/verification
+        localStorage.setItem("pendingProfileDraft", JSON.stringify(profile));
       }
 
-      const saveRes = await fetch("/api/users", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          userID,
-          email,
-          fullName,
-          role,
-          region,
-          ...extras, // <- all your extra ProfileForm fields go to DynamoDB too
-        }),
-      })
-
-      if (!saveRes.ok) {
-        const msg = await saveRes.text()
-        throw new Error(`Failed to save user in DynamoDB: ${msg || saveRes.status}`)
-      }
-
-      const { user } = await saveRes.json()
-
-      localStorage.setItem("userFullName", user?.fullName || fullName)
-      localStorage.setItem("userEmail", user?.email || email)
-      localStorage.setItem("userRole", user?.role || role)
-      setUser(user || { fullName, email, role, region })
-
-      router.push(`/confirm?email=${encodeURIComponent(email)}`)
+      setMsg(
+        "Sign-up successful! We’ve sent a verification code to your email. Please verify to continue."
+      );
+      // Route to a verify page (create one if you haven't) or to login
+      setTimeout(() => router.push("/login"), 1200);
     } catch (err: any) {
-      setError(err?.message || "Signup failed. Please check your details and try again.")
+      const message =
+        err?.name === "UsernameExistsException"
+          ? "An account with this email already exists."
+          : err?.message || "Sign-up failed. Please try again.";
+      setMsg(message);
     } finally {
-      setLoading(false)
+      setBusy(false);
     }
-  }
+  };
 
   return (
-    <>
-      {error && (
-        <div className="max-w-2xl mx-auto mb-4 rounded border border-red-300 bg-red-50 p-3 text-sm text-red-700">
-          {error}
+    <form onSubmit={handleSignup} className="mx-auto max-w-3xl space-y-8">
+      {msg && (
+        <div
+          className={`rounded border p-3 text-sm ${
+            msg.toLowerCase().includes("fail") || msg.toLowerCase().includes("missing") || msg.toLowerCase().includes("exists")
+              ? "border-red-200 bg-red-50 text-red-700"
+              : "border-green-200 bg-green-50 text-green-700"
+          }`}
+        >
+          {msg}
         </div>
       )}
 
-      {/* IMPORTANT:
-         - If your ProfileForm ALREADY wraps its own <form>, see the note below (Option B).
-         - If ProfileForm is just fields (no <form>), this wrapper will submit ALL fields.
-      */}
-      <form ref={formRef} onSubmit={handleSubmit} className="max-w-3xl mx-auto">
-        <ProfileForm />
-        {/* If your ProfileForm already has a submit button, remove this one */}
-        <div className="mt-6 text-right">
-          <button
-            type="submit"
-            disabled={loading}
-            className="inline-flex items-center rounded bg-green-600 px-4 py-2 font-medium text-white hover:bg-green-700 disabled:opacity-60"
-          >
-            {loading ? "Signing up..." : "Create Account"}
-          </button>
+      {/* Fast Prefill */}
+      <section className="rounded-md border bg-gray-50 p-4">
+        <h2 className="text-base font-semibold">Fast Prefill (optional)</h2>
+        <p className="mb-3 text-sm text-gray-600">
+          Upload your resume (PDF/DOCX). We’ll prefill profile fields—you can edit them.
+        </p>
+        <ResumeImporter onPrefill={onPrefill} />
+      </section>
+
+      {/* Account */}
+      <section className="space-y-4">
+        <h2 className="text-lg font-semibold">Account</h2>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700">Full Name</label>
+          <input
+            type="text"
+            value={fullName}
+            onChange={(e) => setFullName(e.target.value)}
+            placeholder="e.g. Alex Chen"
+            className="w-full rounded border p-2"
+            required
+          />
         </div>
-      </form>
-    </>
-  )
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700">Email</label>
+          <input
+            type="email"
+            value={email}
+            autoComplete="email"
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="you@example.com"
+            className="w-full rounded border p-2"
+            required
+          />
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700">Password</label>
+          <div className="flex gap-2">
+            <input
+              type={showPassword ? "text" : "password"}
+              value={password}
+              autoComplete="new-password"
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="Minimum 8 characters"
+              className="w-full rounded border p-2"
+              required
+            />
+            <button
+              type="button"
+              onClick={() => setShowPassword((s) => !s)}
+              className="shrink-0 rounded border px-3 text-sm"
+            >
+              {showPassword ? "Hide" : "Show"}
+            </button>
+          </div>
+        </div>
+      </section>
+
+      {/* Profile Basics (prefilled via resume, editable) */}
+      <section className="space-y-4">
+        <h2 className="text-lg font-semibold">Profile basics</h2>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700">Title / Role</label>
+          <input
+            type="text"
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            placeholder="e.g. Instructional Designer"
+            className="w-full rounded border p-2"
+          />
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700">Location</label>
+          <input
+            type="text"
+            value={location}
+            onChange={(e) => setLocation(e.target.value)}
+            placeholder="e.g. Wellington, NZ"
+            className="w-full rounded border p-2"
+          />
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700">Short Bio</label>
+          <textarea
+            value={bio}
+            onChange={(e) => setBio(e.target.value)}
+            placeholder="Tell us about your background…"
+            className="w-full rounded border p-2"
+            rows={4}
+          />
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700">Profile Image URL</label>
+          <input
+            type="url"
+            value={image}
+            onChange={(e) => setImage(e.target.value)}
+            placeholder="https://example.com/profile.jpg"
+            className="w-full rounded border p-2"
+          />
+          {image ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={image}
+              alt="Preview"
+              className="mt-2 h-16 w-16 rounded-full border object-cover"
+              onError={(e) => ((e.currentTarget.style.display = "none"))}
+            />
+          ) : null}
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700">Region</label>
+          <input
+            type="text"
+            value={region}
+            onChange={(e) => setRegion(e.target.value)}
+            placeholder="e.g. New Zealand"
+            className="w-full rounded border p-2"
+          />
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700">LinkedIn (optional)</label>
+          <input
+            type="url"
+            value={linkedin}
+            onChange={(e) => setLinkedin(e.target.value)}
+            placeholder="https://linkedin.com/in/yourname"
+            className="w-full rounded border p-2"
+          />
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700">Website (optional)</label>
+          <input
+            type="url"
+            value={website}
+            onChange={(e) => setWebsite(e.target.value)}
+            placeholder="https://yourwebsite.com"
+            className="w-full rounded border p-2"
+          />
+        </div>
+      </section>
+
+      {/* Consent + Submit */}
+      <section className="space-y-4">
+        <label className="flex items-center gap-2 text-sm">
+          <input
+            type="checkbox"
+            checked={agree}
+            onChange={(e) => setAgree(e.target.checked)}
+          />
+          I agree to the Terms & Privacy Policy.
+        </label>
+
+        <button
+          type="submit"
+          disabled={busy}
+          className="w-full rounded bg-green-600 py-2 font-medium text-white hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-70"
+        >
+          {busy ? "Creating your account…" : "Create account"}
+        </button>
+      </section>
+    </form>
+  );
 }

@@ -1,11 +1,11 @@
-import Link from "next/link"
-import SignupClient from "./SignupClient"
+import Link from "next/link";
+import SignupClient from "./SignupClient";
 
 export const metadata = {
   title: "Create Your Profile | L&D Talent Hub",
   description:
     "Create your professional profile on L&D Talent Hub. Showcase your skills, experience, and services to connect with businesses looking for L&D talent.",
-}
+};
 
 export default function Page() {
   return (
@@ -17,6 +17,9 @@ export default function Page() {
           </h1>
           <p className="mx-auto max-w-2xl text-lg text-gray-600">
             Showcase your skills, experience, and services to connect with businesses looking for L&amp;D talent.
+          </p>
+          <p className="mx-auto max-w-xl text-sm text-gray-500">
+            Tip: You can upload your resume to prefill fields. You’ll be able to edit everything before submitting.
           </p>
         </div>
 
@@ -34,5 +37,5 @@ export default function Page() {
         </div>
       </div>
     </div>
-  )
+  );
 }
