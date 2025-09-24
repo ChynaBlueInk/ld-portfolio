@@ -1,104 +1,203 @@
-"use client"
+"use client";
 
-import { useEffect, useState } from "react"
-import { useRouter } from "next/navigation"
-import { useAuth } from "@/contexts/AuthContext"
-import { Skeleton } from "@/components/ui/skeleton"
+import { useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
+import ProfessionalsFilter, { type FilterState } from "@/components/professionals-filter";
+import ProfessionalsList from "@/components/professionals-list";
+import { Skeleton } from "@/components/ui/skeleton";
+import { MOCK_PROFESSIONALS, type Professional } from "./_mock";
+
+/** Toggle preview with:
+ *  - Env: NEXT_PUBLIC_PREVIEW_PROS=1  (forces mocks everywhere)
+ *  - URL: /professionals?preview=1    (forces mocks for that tab)
+ */
+const PREVIEW_FROM_ENV = typeof process !== "undefined" && process.env.NEXT_PUBLIC_PREVIEW_PROS === "1";
+
+function normalizeProfessional(raw: any): Professional {
+  return {
+    id: String(
+      raw?.id ||
+        raw?.userID ||
+        raw?.slug ||
+        raw?.email ||
+        `api-${Math.random().toString(36).slice(2)}`
+    ),
+    name:
+      raw?.name ||
+      raw?.fullName ||
+      [raw?.firstName, raw?.lastName].filter(Boolean).join(" ") ||
+      "Unnamed",
+    title: raw?.title,
+    region: raw?.region,
+    location: raw?.location,
+    image: raw?.image || "/placeholder.svg?height=400&width=400",
+    coverImage: raw?.coverImage || "/placeholder.svg",
+    bio: raw?.bio,
+    yearsExperience: raw?.yearsExperience ?? raw?.experienceYears,
+    availability: raw?.availability,
+    rate: raw?.rate,
+    skills: Array.isArray(raw?.skills) ? raw.skills : undefined,
+    services: Array.isArray(raw?.services) ? raw.services : undefined,
+    tools: Array.isArray(raw?.tools) ? raw.tools : undefined,
+    languages: Array.isArray(raw?.languages) ? raw.languages : undefined,
+    certifications: Array.isArray(raw?.certifications) ? raw.certifications : undefined,
+    portfolio: Array.isArray(raw?.portfolio) ? raw.portfolio : undefined,
+    contact: raw?.contact,
+  };
+}
+
+function dedupeById<T extends { id: string }>(arr: T[]): T[] {
+  const seen = new Set<string>();
+  const out: T[] = [];
+  for (const item of arr) {
+    if (!seen.has(item.id)) {
+      seen.add(item.id);
+      out.push(item);
+    }
+  }
+  return out;
+}
 
 export default function ProfessionalsPage() {
-  const { user } = useAuth()
-  const router = useRouter()
-  const [profiles, setProfiles] = useState<any[]>([])
-  const [loading, setLoading] = useState(true)
+  const params = useSearchParams();
+  const forcePreview = PREVIEW_FROM_ENV || params.get("preview") === "1";
+
+  const [all, setAll] = useState<Professional[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [filters, setFilters] = useState<FilterState>({ search: "", skills: [], services: [] });
 
   useEffect(() => {
-    if (!user) {
-      router.push("/login")
-      return
-    }
+    let cancelled = false;
 
-    const fetchProfiles = async () => {
-      try {
-        const res = await fetch("/api/professionals")
-        if (res.ok) {
-          setProfiles(await res.json())
+    async function load() {
+      setLoading(true);
+
+      // 1) Hard preview: always show the 6 rich mocks
+      if (forcePreview) {
+        if (!cancelled) {
+          setAll(MOCK_PROFESSIONALS);
+          setLoading(false);
         }
-      } catch (err) {
-        console.error("Failed to load professionals:", err)
-      } finally {
-        setLoading(false)
+        return;
+      }
+
+      // 2) Try API
+      let normalized: Professional[] = [];
+      try {
+        const res = await fetch("/api/professionals", { cache: "no-store" });
+        if (res.ok) {
+          const data = await res.json();
+          if (Array.isArray(data)) normalized = data.map(normalizeProfessional);
+        }
+      } catch {
+        /* ignore and fall through */
+      }
+
+      // 3) Merge with shared mocks so you always see at least 6 rich entries
+      //    (API items first, then mocks to fill)
+      let merged = dedupeById<Professional>([...normalized, ...MOCK_PROFESSIONALS]);
+
+      // 4) Optional: if nothing at all loaded, check window.__MOCK_PROFESSIONALS__
+      if (merged.length === 0 && typeof window !== "undefined") {
+        const injected = (window as any).__MOCK_PROFESSIONALS__;
+        if (Array.isArray(injected)) {
+          merged = injected.map(normalizeProfessional);
+        }
+      }
+
+      if (!cancelled) {
+        setAll(merged.length > 0 ? merged : MOCK_PROFESSIONALS);
+        setLoading(false);
       }
     }
 
-    fetchProfiles()
-  }, [user, router])
+    load();
+    return () => {
+      cancelled = true;
+    };
+  }, [forcePreview]);
 
-  if (!user) {
-    return <p className="text-center mt-20">Redirecting to login...</p>
-  }
+  // Derive filter options from the dataset (API+mock)
+  const skillsOptions = useMemo(
+    () =>
+      Array.from(new Set(all.flatMap((p) => p.skills || []))).sort(),
+    [all]
+  );
+  const servicesOptions = useMemo(
+    () =>
+      Array.from(new Set(all.flatMap((p) => p.services || []))).sort(),
+    [all]
+  );
+
+  // Apply filters
+  const visible = useMemo(() => {
+    const q = filters.search.trim().toLowerCase();
+    return all.filter((p) => {
+      // text search (name/title/location/region/bio + skills + services)
+      const hay = [
+        p.name, p.title, p.location, p.region, p.bio,
+        ...(p.skills || []), ...(p.services || [])
+      ]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase();
+      const matchesText = q === "" || hay.includes(q);
+
+      // skills: at least one overlap (loose match for preview)
+      const matchesSkills =
+        filters.skills.length === 0 ||
+        (p.skills || []).some((s) => filters.skills.includes(s));
+
+      // services: at least one overlap
+      const matchesServices =
+        filters.services.length === 0 ||
+        (p.services || []).some((s) => filters.services.includes(s));
+
+      return matchesText && matchesSkills && matchesServices;
+    });
+  }, [all, filters]);
 
   return (
     <div className="bg-white">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-12">
-        <div className="space-y-4">
+        <div className="space-y-2">
           <h1 className="text-3xl font-bold tracking-tight text-gray-900 sm:text-4xl">
-            Browse L&D Professionals
+            Browse L&amp;D Professionals
           </h1>
           <p className="text-lg text-gray-600">
-            Find the perfect Learning & Development professional for your business needs. 
-            Filter by skills, services, and expertise.
+            Public preview is on — authentication is temporarily disabled so anyone can browse and provide feedback.
           </p>
+          {!forcePreview ? (
+            <p className="text-xs text-gray-500">
+              Tip: add <code>?preview=1</code> to the URL or set <code>NEXT_PUBLIC_PREVIEW_PROS=1</code> to force the 6 rich mocks.
+            </p>
+          ) : (
+            <p className="text-xs text-emerald-700">Preview mode: showing 6 rich mock profiles.</p>
+          )}
         </div>
 
         <div className="mt-8 grid grid-cols-1 gap-x-8 gap-y-10 lg:grid-cols-4">
-          {/* Left column could hold filters later */}
+          {/* Filters */}
           <div className="lg:col-span-1">
-            <div className="p-4 border rounded bg-gray-50">
-              <p className="font-semibold">Filters</p>
-              <p className="text-sm text-gray-600 mt-2">
-                Filter by skills, services, or region (coming soon).
-              </p>
-            </div>
+            <ProfessionalsFilter
+              defaultState={filters}
+              onChange={setFilters}
+              skillsOptions={skillsOptions.length ? skillsOptions : undefined}
+              servicesOptions={servicesOptions.length ? servicesOptions : undefined}
+            />
           </div>
 
-          {/* Professionals list */}
+          {/* Results */}
           <div className="lg:col-span-3">
-            {loading ? (
-              <ProfessionalsListSkeleton />
-            ) : profiles.length > 0 ? (
-              <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-                {profiles.map((p) => (
-                  <div
-                    key={p.id}
-                    className="flex flex-col rounded-lg border border-gray-200 bg-white shadow p-6"
-                  >
-                    <div className="flex flex-col items-center text-center">
-                      <div className="h-24 w-24 rounded-full bg-gray-200 mb-4" />
-                      <h2 className="text-lg font-semibold">{p.fullName}</h2>
-                      <p className="text-sm text-gray-500">{p.title || "No title"}</p>
-                      <p className="text-sm text-gray-500">{p.region || "Region not specified"}</p>
-                      <p className="mt-2 text-sm text-gray-600 line-clamp-3">{p.bio}</p>
-                      <button
-                        onClick={() => router.push(`/professionals/${p.id}`)}
-                        className="mt-4 bg-indigo-600 text-white px-4 py-2 rounded hover:bg-indigo-500"
-                      >
-                        View Profile
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <p className="text-gray-600">No professionals found.</p>
-            )}
+            {loading ? <ListSkeleton /> : <ProfessionalsList data={visible} />}
           </div>
         </div>
       </div>
     </div>
-  )
+  );
 }
 
-function ProfessionalsListSkeleton() {
+function ListSkeleton() {
   return (
     <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
       {Array.from({ length: 6 }).map((_, i) => (
@@ -116,5 +215,5 @@ function ProfessionalsListSkeleton() {
         </div>
       ))}
     </div>
-  )
+  );
 }

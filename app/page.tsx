@@ -3,19 +3,14 @@
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { ArrowRight, BookOpen, Users, Award, Briefcase } from "lucide-react"
-import { useAuth } from "@/contexts/AuthContext"
 import { useRouter } from "next/navigation"
 
 export default function Home() {
-  const { user } = useAuth()
   const router = useRouter()
 
   const handleCreateProfile = () => {
-    if (user) {
-      router.push("/profile/create")
-    } else {
-      router.push("/signup")
-    }
+    // Public preview: always go directly to the profile create page
+    router.push("/profile/create")
   }
 
   return (
@@ -43,7 +38,7 @@ export default function Home() {
             <Button
               size="lg"
               onClick={handleCreateProfile}
-              className="rounded-full px-6 border border-[#4A3B36] text-[#4A3B36] hover:bg-[#Ea87c6f] bg-white"
+              className="rounded-full px-6 border border-[#4A3B36] text-[#4A3B36] hover:bg-[#a87c6f] bg-white"
             >
               Create Your Profile
             </Button>
@@ -57,30 +52,26 @@ export default function Home() {
           <h2 className="text-[#A87C6F] font-semibold text-base tracking-wide">
             For Businesses
           </h2>
-          <p className="mt-2 text-4xl font-bold text-[#4A3B36]">
-            Hire Learning & Development Experts
-          </p>
-          <p className="mt-4 text-lg text-gray-700 max-w-3xl mx-auto">
-            Connect with verified professionals in eLearning, instructional
-            design, facilitation, and organisational training.
-          </p>
         </div>
         <div className="mt-20 grid grid-cols-1 md:grid-cols-3 gap-12 max-w-6xl mx-auto">
           {[
             {
               icon: <BookOpen className="h-6 w-6 text-[#A8C09D]" />,
               title: "Specialised Expertise",
-              desc: "Access professionals with skills in eLearning, AI training, LMS setup, workshop design, and more.",
+              desc:
+                "Access professionals with skills in eLearning, AI training, LMS setup, workshop design, and more.",
             },
             {
               icon: <Users className="h-6 w-6 text-[#A8C09D]" />,
               title: "Verified Professionals",
-              desc: "Browse vetted profiles with proven experience and client testimonials.",
+              desc:
+                "Browse vetted profiles with proven experience and client testimonials.",
             },
             {
               icon: <Award className="h-6 w-6 text-[#A8C09D]" />,
               title: "Quality Assurance",
-              desc: "All professionals meet our standards for excellence and performance.",
+              desc:
+                "All professionals meet our standards for excellence and performance.",
             },
           ].map((item, i) => (
             <div
@@ -116,17 +107,20 @@ export default function Home() {
             {
               icon: <Briefcase className="h-6 w-6 text-[#4A3B36]" />,
               title: "Professional Portfolio",
-              desc: "Highlight your certifications, services, and project experience in one place.",
+              desc:
+                "Highlight your certifications, services, and project experience in one place.",
             },
             {
               icon: <Users className="h-6 w-6 text-[#4A3B36]" />,
               title: "Direct Connections",
-              desc: "Get matched with clients who value your unique skill set.",
+              desc:
+                "Get matched with clients who value your unique skill set.",
             },
             {
               icon: <Award className="h-6 w-6 text-[#4A3B36]" />,
               title: "Build Credibility",
-              desc: "Display testimonials and build trust with your ideal clients.",
+              desc:
+                "Display testimonials and build trust with your ideal clients.",
             },
           ].map((item, i) => (
             <div
