@@ -1,8 +1,11 @@
 // app/professionals/page.tsx
-import dynamic from "next/dynamic";
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
-// Disable SSR entirely for this route to avoid prerendering + hooks warnings
-const ProsPageClient = dynamic(() => import("./ProsPageClient"), { ssr: false });
+import dynamicClient from "next/dynamic";
+
+// Disable SSR for this route; render the client component only
+const ProsPageClient = dynamicClient(() => import("./ProsPageClient"), { ssr: false });
 
 export default function Page() {
   return <ProsPageClient />;
