@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import ProfessionalsFilter, { type FilterState } from "@/components/professionals-filter";
 import ProfessionalsList from "@/components/professionals-list";
@@ -11,7 +11,8 @@ import { MOCK_PROFESSIONALS, type Professional } from "./_mock";
  *  - Env: NEXT_PUBLIC_PREVIEW_PROS=1  (forces mocks everywhere)
  *  - URL: /professionals?preview=1    (forces mocks for that tab)
  */
-const PREVIEW_FROM_ENV = typeof process !== "undefined" && process.env.NEXT_PUBLIC_PREVIEW_PROS === "1";
+const PREVIEW_FROM_ENV =
+  typeof process !== "undefined" && process.env.NEXT_PUBLIC_PREVIEW_PROS === "1";
 
 function normalizeProfessional(raw: any): Professional {
   return {
@@ -58,13 +59,29 @@ function dedupeById<T extends { id: string }>(arr: T[]): T[] {
   return out;
 }
 
+/** Default export: wrapper with Suspense.
+ *  The inner component uses useSearchParams(), which must be inside a Suspense boundary.
+ */
 export default function ProfessionalsPage() {
+  return (
+    <Suspense fallback={<ListSkeleton />}>
+      <ProfessionalsPageInner />
+    </Suspense>
+  );
+}
+
+/** Inner component that does all the data work and uses useSearchParams */
+function ProfessionalsPageInner() {
   const params = useSearchParams();
   const forcePreview = PREVIEW_FROM_ENV || params.get("preview") === "1";
 
   const [all, setAll] = useState<Professional[]>([]);
   const [loading, setLoading] = useState(true);
-  const [filters, setFilters] = useState<FilterState>({ search: "", skills: [], services: [] });
+  const [filters, setFilters] = useState<FilterState>({
+    search: "",
+    skills: [],
+    services: [],
+  });
 
   useEffect(() => {
     let cancelled = false;
@@ -72,7 +89,7 @@ export default function ProfessionalsPage() {
     async function load() {
       setLoading(true);
 
-      // 1) Hard preview: always show the 6 rich mocks
+      // 1) Hard preview: always show the rich mocks
       if (forcePreview) {
         if (!cancelled) {
           setAll(MOCK_PROFESSIONALS);
@@ -94,10 +111,9 @@ export default function ProfessionalsPage() {
       }
 
       // 3) Merge with shared mocks so you always see at least 6 rich entries
-      //    (API items first, then mocks to fill)
       let merged = dedupeById<Professional>([...normalized, ...MOCK_PROFESSIONALS]);
 
-      // 4) Optional: if nothing at all loaded, check window.__MOCK_PROFESSIONALS__
+      // 4) Optional: if nothing loaded, check window.__MOCK_PROFESSIONALS__
       if (merged.length === 0 && typeof window !== "undefined") {
         const injected = (window as any).__MOCK_PROFESSIONALS__;
         if (Array.isArray(injected)) {
@@ -119,13 +135,11 @@ export default function ProfessionalsPage() {
 
   // Derive filter options from the dataset (API+mock)
   const skillsOptions = useMemo(
-    () =>
-      Array.from(new Set(all.flatMap((p) => p.skills || []))).sort(),
+    () => Array.from(new Set(all.flatMap((p) => p.skills || []))).sort(),
     [all]
   );
   const servicesOptions = useMemo(
-    () =>
-      Array.from(new Set(all.flatMap((p) => p.services || []))).sort(),
+    () => Array.from(new Set(all.flatMap((p) => p.services || []))).sort(),
     [all]
   );
 
@@ -133,22 +147,25 @@ export default function ProfessionalsPage() {
   const visible = useMemo(() => {
     const q = filters.search.trim().toLowerCase();
     return all.filter((p) => {
-      // text search (name/title/location/region/bio + skills + services)
       const hay = [
-        p.name, p.title, p.location, p.region, p.bio,
-        ...(p.skills || []), ...(p.services || [])
+        p.name,
+        p.title,
+        p.location,
+        p.region,
+        p.bio,
+        ...(p.skills || []),
+        ...(p.services || []),
       ]
         .filter(Boolean)
         .join(" ")
         .toLowerCase();
+
       const matchesText = q === "" || hay.includes(q);
 
-      // skills: at least one overlap (loose match for preview)
       const matchesSkills =
         filters.skills.length === 0 ||
         (p.skills || []).some((s) => filters.skills.includes(s));
 
-      // services: at least one overlap
       const matchesServices =
         filters.services.length === 0 ||
         (p.services || []).some((s) => filters.services.includes(s));
@@ -169,10 +186,13 @@ export default function ProfessionalsPage() {
           </p>
           {!forcePreview ? (
             <p className="text-xs text-gray-500">
-              Tip: add <code>?preview=1</code> to the URL or set <code>NEXT_PUBLIC_PREVIEW_PROS=1</code> to force the 6 rich mocks.
+              Tip: add <code>?preview=1</code> to the URL or set{" "}
+              <code>NEXT_PUBLIC_PREVIEW_PROS=1</code> to force the 6 rich mocks.
             </p>
           ) : (
-            <p className="text-xs text-emerald-700">Preview mode: showing 6 rich mock profiles.</p>
+            <p className="text-xs text-emerald-700">
+              Preview mode: showing 6 rich mock profiles.
+            </p>
           )}
         </div>
 
