@@ -1,21 +1,77 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
-import { useAuth } from "@/contexts/AuthContext";
-import ResumeImporter from "@/components/ResumeImporter";
+import { useEffect, useMemo, useState } from "react";
 
-type Parsed = {
-  fullName?: string; email?: string; phone?: string;
-  headline?: string; location?: string; links?: string[];
-  skills?: string[]; summary?: string;
-  currentRole?: string; currentCompany?: string;
+/**
+ * Public-preview version:
+ * - Does NOT require sign-in
+ * - If no identity tokens are present, loads/saves to localStorage as a draft
+ *   (keeps your existing pendingProfileDraft convention)
+ * - If identity exists, behaves as before and POSTs to /api/users
+ */
+
+// --- helpers ---------------------------------------------------------------
+
+function decodeJwtSubFromLocal(): { sub?: string; email?: string } {
+  try {
+    const id = localStorage.getItem("idToken");
+    const email = localStorage.getItem("email") || undefined;
+    if (!id) return { email };
+    const payload = id.split(".")[1];
+    const json = JSON.parse(atob(payload.replace(/-/g, "+").replace(/_/g, "/")));
+    return { sub: json?.sub, email: json?.email || email };
+  } catch {
+    return { email: localStorage.getItem("email") || undefined };
+  }
+}
+
+type Profile = {
+  userID: string;
+  email: string;
+  fullName: string;
+  role?: string;
+  title?: string;
+  location?: string;
+  bio?: string;
+  image?: string;
+  region?: string;
+  linkedin?: string;
+  website?: string;
 };
 
-export default function CreateProfilePage() {
-  const { user } = useAuth();
-  const router = useRouter();
+// Merge only empty fields in `base` from `patch`
+function mergeOnlyEmpty(base: Partial<Profile>, patch: Partial<Profile>) {
+  const result: Partial<Profile> = { ...base };
+  (Object.keys(patch) as (keyof Profile)[]).forEach((k) => {
+    const current = result[k];
+    const incoming = patch[k];
+    const isEmpty =
+      current === undefined ||
+      current === null ||
+      (typeof current === "string" && current.trim() === "");
+    if (isEmpty && incoming !== undefined && incoming !== null) {
+      result[k] = incoming;
+    }
+  });
+  return result;
+}
 
+// --- page ------------------------------------------------------------------
+
+export default function ProfileCreatePage() {
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [banner, setBanner] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  // identity (if present)
+  const identity = useMemo(decodeJwtSubFromLocal, []);
+  const [userID, setUserID] = useState<string>("");
+  const [email, setEmail] = useState<string>("");
+
+  // form fields
+  const [fullName, setFullName] = useState("");
+  const [role, setRole] = useState<string | undefined>("Member"); // default
   const [title, setTitle] = useState("");
   const [location, setLocation] = useState("");
   const [bio, setBio] = useState("");
@@ -24,244 +80,352 @@ export default function CreateProfilePage() {
   const [linkedin, setLinkedin] = useState("");
   const [website, setWebsite] = useState("");
 
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [message, setMessage] = useState("");
+  const isAuthed = Boolean(identity.sub || identity.email);
 
-  // Prefill handler from ResumeImporter
-  const onPrefill = (d: Parsed) => {
-    if (d.headline) setTitle(d.headline);
-    if (d.location) setLocation(d.location);
-    if (d.summary) setBio(d.summary);
-    // If resume has company/role lines, prefer role as title
-    if (!d.headline && d.currentRole) setTitle(d.currentRole);
-    // keep email/fullName read-only from Cognito
-  };
-
+  // Load existing (if authed) + apply any pending draft
   useEffect(() => {
-    // Wait until we know whether user exists before redirect/fetch
-    if (user === undefined) return; // in case your context uses undefined while loading
+    let cancelled = false;
 
-    if (!user) {
-      router.push("/signup");
-      return;
+    async function run() {
+      setLoading(true);
+      setError(null);
+
+      try {
+        // Resolve identity (or set preview placeholders)
+        const sub = identity.sub || localStorage.getItem("userID") || undefined;
+        const em = identity.email || localStorage.getItem("email") || undefined;
+
+        if (sub || em) {
+          const resolvedUserID = sub || (em as string);
+          const resolvedEmail = em || "";
+          setUserID(resolvedUserID);
+          setEmail(resolvedEmail);
+
+          // Try GET /api/users
+          try {
+            const res = await fetch(`/api/users?userID=${encodeURIComponent(resolvedUserID)}`, {
+              method: "GET",
+              cache: "no-store",
+            });
+            if (res.ok) {
+              const existing = (await res.json()) as Partial<Profile>;
+              if (!cancelled && existing) {
+                setFullName(existing.fullName || "");
+                setRole(existing.role || "Member");
+                setTitle(existing.title || "");
+                setLocation(existing.location || "");
+                setBio(existing.bio || "");
+                setImage(existing.image || "");
+                setRegion(existing.region || "");
+                setLinkedin(existing.linkedin || "");
+                setWebsite(existing.website || "");
+              }
+            } else if (res.status !== 404) {
+              setBanner(
+                "Couldn’t load a saved profile yet — you may be new. Fill the form and Save."
+              );
+            }
+          } catch {
+            setBanner("Network issue loading your profile. You can still edit and Save.");
+          }
+        } else {
+          // Preview mode (no auth): set placeholders
+          setUserID("preview-user");
+          setEmail("");
+          setBanner(
+            "Public Preview: you’re not signed in. You can edit fields and Save a local draft."
+          );
+        }
+
+        // Apply pendingProfileDraft (only to empty fields), then remove it
+        try {
+          const raw = localStorage.getItem("pendingProfileDraft");
+          if (raw) {
+            const draft = JSON.parse(raw) as Partial<Profile>;
+            // If authenticated, only apply if email matches or draft has no email
+            const canApply =
+              !isAuthed ||
+              !draft.email ||
+              !email ||
+              draft.email.toLowerCase() === email.toLowerCase();
+
+            if (canApply) {
+              const merged = mergeOnlyEmpty(
+                {
+                  fullName,
+                  role,
+                  title,
+                  location,
+                  bio,
+                  image,
+                  region,
+                  linkedin,
+                  website,
+                  email,
+                  userID,
+                },
+                draft
+              );
+
+              if (!cancelled) {
+                setFullName(merged.fullName || "");
+                setRole(merged.role || "Member");
+                setTitle(merged.title || "");
+                setLocation(merged.location || "");
+                setBio(merged.bio || "");
+                setImage(merged.image || "");
+                setRegion(merged.region || "");
+                setLinkedin(merged.linkedin || "");
+                setWebsite(merged.website || "");
+                localStorage.removeItem("pendingProfileDraft");
+                setBanner("Applied details from your draft. Review and Save.");
+              }
+            }
+          }
+        } catch {
+          /* ignore */
+        }
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
     }
 
-    const loadProfile = async () => {
-      try {
-        const id = user.userID || user.email;
-        const res = await fetch(`/api/users?userID=${encodeURIComponent(id)}`);
-        if (res.ok) {
-          const data = await res.json();
-          setTitle(data.title || "");
-          setLocation(data.location || "");
-          setBio(data.bio || "");
-          setImage(data.image || "");
-          setRegion(data.region || "");
-          setLinkedin(data.linkedin || "");
-          setWebsite(data.website || "");
-        }
-      } catch (err) {
-        console.error("Failed to load profile:", err);
-      } finally {
-        setLoading(false);
-      }
-    };
+    run();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // run once
 
-    loadProfile();
-  }, [user, router]);
-
-  if (!user) {
-    return (
-      <div className="max-w-xl mx-auto mt-20 text-center">
-        <p className="text-gray-600">Redirecting to sign up...</p>
-      </div>
-    );
-  }
-
-  const handleSubmit = async (e: React.FormEvent) => {
+  async function onSave(e: React.FormEvent) {
     e.preventDefault();
     setSaving(true);
-    setMessage("");
+    setError(null);
+    setBanner(null);
 
     try {
+      const payload: Profile = {
+        userID: userID || "preview-user",
+        email: email || "",
+        fullName,
+        role: role || "Member",
+        title,
+        location,
+        bio,
+        image,
+        region,
+        linkedin,
+        website,
+      };
+
+      if (!isAuthed) {
+        // Preview mode: Save locally so you don't lose work
+        localStorage.setItem("pendingProfileDraft", JSON.stringify(payload));
+        setBanner("✅ Saved locally as a draft (Public Preview). Sign-in later to sync it.");
+        return;
+      }
+
+      // Authenticated flow: POST to API
       const res = await fetch("/api/users", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          userID: user.userID || user.email,
-          email: user.email,
-          fullName: user.fullName,
-          role: user.role,
-          title,
-          location,
-          bio,
-          image,
-          region,
-          linkedin,
-          website,
-        }),
+        body: JSON.stringify(payload),
       });
 
-      if (!res.ok) throw new Error("Failed to save profile");
+      if (!res.ok) {
+        const txt = await res.text().catch(() => "");
+        throw new Error(`Save failed (${res.status}). ${txt || "Please try again."}`);
+      }
 
-      setMessage("Profile saved successfully! Redirecting to Dashboard...");
-      setTimeout(() => router.push("/dashboard"), 1200);
+      setBanner("✅ Profile saved.");
     } catch (err: any) {
-      console.error("Profile save error:", err);
-      setMessage("Error saving profile. Please try again.");
+      setError(err?.message || "Couldn’t save your profile.");
     } finally {
       setSaving(false);
     }
-  };
+  }
 
   return (
-    <div className="max-w-2xl mx-auto mt-20 p-6 bg-white rounded shadow">
-      <h1 className="text-3xl font-bold mb-6">
-        {loading ? "Loading..." : "Edit Your Professional Profile"}
-      </h1>
-
-      {message && (
-        <p className={`mb-4 ${message.includes("Error") ? "text-red-600" : "text-green-600"}`}>
-          {message}
+    <div className="bg-white">
+      <main className="mx-auto max-w-3xl px-4 py-10 sm:px-6 lg:px-8">
+        <h1 className="mb-2 text-2xl font-semibold text-gray-900">Create / Update your profile</h1>
+        <p className="mb-6 text-sm text-gray-600">
+          Public Preview is on — authentication is disabled. You can edit and save a local draft now,
+          then sign in later to sync it to your account.
         </p>
-      )}
 
-      {!loading && (
-        <>
-          {/* Import from Resume */}
-          <div className="mb-8 border rounded p-4 bg-gray-50">
-            <h2 className="text-lg font-semibold mb-2">Fast Prefill</h2>
-            <p className="text-sm text-gray-600 mb-3">
-              Upload your resume (PDF or DOCX) and we’ll prefill fields. You can edit before saving.
-            </p>
-            <ResumeImporter onPrefill={onPrefill} />
+        {(banner || error) && (
+          <div
+            className={`mb-5 rounded border p-3 text-sm ${
+              error
+                ? "border-red-200 bg-red-50 text-red-700"
+                : "border-emerald-200 bg-emerald-50 text-emerald-700"
+            }`}
+          >
+            {error || banner}
           </div>
+        )}
 
-          <form className="space-y-4" onSubmit={handleSubmit}>
-            <div>
-              <label className="block text-sm font-medium text-gray-700">Full Name</label>
-              <input
-                type="text"
-                defaultValue={user.fullName || ""}
-                disabled
-                className="w-full p-2 border rounded bg-gray-100 cursor-not-allowed"
-              />
-            </div>
+        {loading ? (
+          <p className="text-sm text-gray-600">Loading…</p>
+        ) : (
+          <form onSubmit={onSave} className="space-y-6">
+            {/* Identity (read-only) */}
+            <section className="rounded-md border bg-gray-50 p-4">
+              <div className="grid gap-4 md:grid-cols-2">
+                <div>
+                  <label className="mb-1 block text-xs font-medium text-gray-600">
+                    User ID (preview shows placeholder)
+                  </label>
+                  <input
+                    value={userID || "preview-user"}
+                    readOnly
+                    className="w-full rounded border bg-gray-100 p-2 text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="mb-1 block text-xs font-medium text-gray-600">Email</label>
+                  <input
+                    value={email || "(not signed in)"}
+                    readOnly
+                    className="w-full rounded border bg-gray-100 p-2 text-sm"
+                  />
+                </div>
+              </div>
+            </section>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700">Email</label>
-              <input
-                type="email"
-                value={user.email}
-                disabled
-                className="w-full p-2 border rounded bg-gray-100 cursor-not-allowed"
-              />
-            </div>
+            {/* Basics */}
+            <section className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Full name</label>
+                <input
+                  type="text"
+                  value={fullName}
+                  onChange={(e) => setFullName(e.target.value)}
+                  className="w-full rounded border p-2"
+                  placeholder="Your name"
+                  required
+                />
+              </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700">Title / Role</label>
-              <input
-                type="text"
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                placeholder="e.g. Instructional Designer"
-                className="w-full p-2 border rounded"
-                required
-              />
-            </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700">
+                  Role (optional — defaults to Member)
+                </label>
+                <input
+                  type="text"
+                  value={role || ""}
+                  onChange={(e) => setRole(e.target.value || undefined)}
+                  className="w-full rounded border p-2"
+                  placeholder="Member"
+                />
+              </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700">Location</label>
-              <input
-                type="text"
-                value={location}
-                onChange={(e) => setLocation(e.target.value)}
-                placeholder="e.g. Wellington, NZ"
-                className="w-full p-2 border rounded"
-                required
-              />
-            </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Title / Position</label>
+                <input
+                  type="text"
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
+                  className="w-full rounded border p-2"
+                  placeholder="e.g., Instructional Designer"
+                />
+              </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700">Short Bio</label>
-              <textarea
-                value={bio}
-                onChange={(e) => setBio(e.target.value)}
-                placeholder="Tell us about your background..."
-                className="w-full p-2 border rounded"
-                rows={4}
-                required
-              />
-            </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Location</label>
+                <input
+                  type="text"
+                  value={location}
+                  onChange={(e) => setLocation(e.target.value)}
+                  className="w-full rounded border p-2"
+                  placeholder="e.g., Wellington, NZ"
+                />
+              </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700">Profile Image URL</label>
-              <input
-                type="url"
-                value={image}
-                onChange={(e) => setImage(e.target.value)}
-                placeholder="https://example.com/profile.jpg"
-                className="w-full p-2 border rounded"
-              />
-              {image ? (
-                <div className="mt-2">
-                  {/* Preview (non-blocking if URL invalid) */}
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Short bio</label>
+                <textarea
+                  value={bio}
+                  onChange={(e) => setBio(e.target.value)}
+                  className="w-full rounded border p-2"
+                  rows={4}
+                  placeholder="Tell us about your background…"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Profile image URL</label>
+                <input
+                  type="url"
+                  value={image}
+                  onChange={(e) => setImage(e.target.value)}
+                  className="w-full rounded border p-2"
+                  placeholder="https://example.com/you.jpg"
+                />
+                {image ? (
+                  // eslint-disable-next-line @next/next/no-img-element
                   <img
                     src={image}
                     alt="Preview"
-                    className="h-20 w-20 rounded-full object-cover border"
-                    onError={(e) => ((e.currentTarget.style.display = "none"))}
+                    className="mt-2 h-16 w-16 rounded-full border object-cover"
+                    onError={(e) => {
+                      (e.currentTarget as HTMLImageElement).style.display = "none";
+                    }}
                   />
-                </div>
-              ) : null}
-            </div>
+                ) : null}
+              </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700">Region</label>
-              <input
-                type="text"
-                value={region}
-                onChange={(e) => setRegion(e.target.value)}
-                placeholder="e.g. New Zealand"
-                className="w-full p-2 border rounded"
-                required
-              />
-            </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Region</label>
+                <input
+                  type="text"
+                  value={region}
+                  onChange={(e) => setRegion(e.target.value)}
+                  className="w-full rounded border p-2"
+                  placeholder="e.g., APAC"
+                />
+              </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700">LinkedIn Profile</label>
-              <input
-                type="url"
-                value={linkedin}
-                onChange={(e) => setLinkedin(e.target.value)}
-                placeholder="https://linkedin.com/in/yourname"
-                className="w-full p-2 border rounded"
-              />
-            </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700">LinkedIn (optional)</label>
+                <input
+                  type="url"
+                  value={linkedin}
+                  onChange={(e) => setLinkedin(e.target.value)}
+                  className="w-full rounded border p-2"
+                  placeholder="https://linkedin.com/in/yourname"
+                />
+              </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700">Website (optional)</label>
-              <input
-                type="url"
-                value={website}
-                onChange={(e) => setWebsite(e.target.value)}
-                placeholder="https://yourwebsite.com"
-                className="w-full p-2 border rounded"
-              />
-            </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Website (optional)</label>
+                <input
+                  type="url"
+                  value={website}
+                  onChange={(e) => setWebsite(e.target.value)}
+                  className="w-full rounded border p-2"
+                  placeholder="https://yourwebsite.com"
+                />
+              </div>
+            </section>
 
-            <button
-              type="submit"
-              disabled={saving}
-              className="w-full py-2 bg-green-600 text-white rounded hover:bg-green-700"
-            >
-              {saving ? "Saving..." : "Save Profile"}
-            </button>
+            <div className="flex flex-col gap-3 pt-2">
+              <button
+                type="submit"
+                disabled={saving}
+                className="inline-flex w-full items-center justify-center rounded-md bg-black px-4 py-2 text-sm font-medium text-white disabled:opacity-60"
+              >
+                {saving ? "Saving…" : isAuthed ? "Save profile" : "Save local draft"}
+              </button>
+
+              {!isAuthed && (
+                <p className="text-xs text-gray-500 text-center">
+                  You’re in Public Preview. This will save to your browser only. When sign-in is
+                  re-enabled, your draft will auto-apply after login.
+                </p>
+              )}
+            </div>
           </form>
-        </>
-      )}
+        )}
+      </main>
     </div>
   );
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   CognitoIdentityProviderClient,
@@ -9,17 +9,28 @@ import {
 import ResumeImporter from "@/components/ResumeImporter";
 
 type Parsed = {
-  fullName?: string; email?: string; phone?: string;
-  headline?: string; location?: string; links?: string[];
-  skills?: string[]; summary?: string;
-  currentRole?: string; currentCompany?: string;
+  // Your page previously used this shape
+  fullName?: string;
+  email?: string;
+  phone?: string;
+  headline?: string;
+  location?: string;
+  links?: string[];
+  skills?: string[];
+  summary?: string;
+  currentRole?: string;
+  currentCompany?: string;
+
+  // Back-compat in case ResumeImporter returns `name`
+  name?: string;
 };
 
-// ⬇️ Replace with your real IDs (client ID is safe on client)
-const REGION = "ap-southeast-2";
-const CLIENT_ID = process.env.NEXT_PUBLIC_COGNITO_CLIENT_ID || "YOUR_CLIENT_ID"; // e.g. 6bpvj6dq1kalujdu7mdieujtfl
-
-const cognito = new CognitoIdentityProviderClient({ region: REGION });
+const REGION =
+  process.env.NEXT_PUBLIC_COGNITO_REGION || "ap-southeast-2";
+const CLIENT_ID =
+  process.env.NEXT_PUBLIC_COGNITO_CLIENT_ID || "";
+const AUTH_FLOW =
+  process.env.NEXT_PUBLIC_COGNITO_AUTH_FLOW || "USER_PASSWORD_AUTH";
 
 export default function SignupClient() {
   const router = useRouter();
@@ -43,9 +54,18 @@ export default function SignupClient() {
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
 
-  // Prefill from resume
+  const cognito = useMemo(
+    () =>
+      new CognitoIdentityProviderClient({
+        region: REGION,
+      }),
+    []
+  );
+
+  // Prefill from resume (handles either `fullName` or `name`)
   const onPrefill = (d: Parsed) => {
-    if (d.fullName && !fullName) setFullName(d.fullName);
+    const nameFromResume = d.fullName || d.name;
+    if (nameFromResume && !fullName) setFullName(nameFromResume);
     if (d.email && !email) setEmail(d.email);
     if (d.headline) setTitle(d.headline);
     if (!d.headline && d.currentRole) setTitle(d.currentRole);
@@ -53,43 +73,78 @@ export default function SignupClient() {
     if (d.summary) setBio(d.summary);
   };
 
+  async function postProfileOrDraft(arg: {
+    userID: string;
+    email: string;
+    fullName: string;
+    role?: string;
+    title?: string;
+    location?: string;
+    bio?: string;
+    image?: string;
+    region?: string;
+    linkedin?: string;
+    website?: string;
+  }) {
+    try {
+      const res = await fetch("/api/users", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(arg),
+      });
+      if (!res.ok) throw new Error(`POST /api/users -> ${res.status}`);
+      return true;
+    } catch {
+      try {
+        localStorage.setItem("pendingProfileDraft", JSON.stringify(arg));
+      } catch {
+        // ignore
+      }
+      return false;
+    }
+  }
+
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
     setMsg(null);
 
-    if (!CLIENT_ID || CLIENT_ID === "YOUR_CLIENT_ID") {
-      setMsg("Cognito Client ID is missing. Set NEXT_PUBLIC_COGNITO_CLIENT_ID.");
+    if (!CLIENT_ID) {
+      setMsg(
+        "Configuration error: NEXT_PUBLIC_COGNITO_CLIENT_ID is missing."
+      );
       return;
     }
     if (!agree) {
       setMsg("Please accept the terms to continue.");
       return;
     }
-    setBusy(true);
+    if (!email || !password) {
+      setMsg("Please enter email and password.");
+      return;
+    }
 
+    setBusy(true);
     try {
-      // 1) Create the Cognito user
+      // 1) Create user in Cognito
       const signup = new SignUpCommand({
         ClientId: CLIENT_ID,
         Username: email,
         Password: password,
         UserAttributes: [
-          { Name: "name", Value: fullName },
           { Name: "email", Value: email },
-          // You can add custom attrs once defined in your pool, e.g. "custom:role"
+          ...(fullName ? [{ Name: "name", Value: fullName }] : []),
         ],
       });
 
       const out = await cognito.send(signup);
-      const userSub = out.UserSub || ""; // The unique Cognito user ID
+      const userSub = out.UserSub || "";
 
-      // 2) Try to save profile now (OK if your /api/users allows this pre-verification)
-      // If it fails due to auth, we’ll save as a local draft.
-      const profile = {
-        userID: userSub || email, // fallback to email if sub unavailable
+      // 2) Attempt to create basic profile now (ok if your /api/users requires auth; we'll stash instead)
+      await postProfileOrDraft({
+        userID: userSub || email, // fallback until we have tokens
         email,
         fullName,
-        role: "", // optional, set later if needed
+        role: "Member", // default; your API treats role as optional
         title,
         location,
         bio,
@@ -97,34 +152,31 @@ export default function SignupClient() {
         region,
         linkedin,
         website,
-      };
+      });
 
-      let savedNow = false;
-      try {
-        const res = await fetch("/api/users", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(profile),
-        });
-        savedNow = res.ok;
-      } catch {
-        savedNow = false;
+      // 3) Routing: if code sent or user not confirmed, go to /verify; otherwise go to /login
+      const needsConfirm =
+        !!out.CodeDeliveryDetails || out.UserConfirmed === false;
+
+      if (needsConfirm) {
+        setMsg(
+          "Sign-up successful! We’ve sent a verification code to your email."
+        );
+        router.push(`/verify?email=${encodeURIComponent(email)}`);
+      } else {
+        setMsg("Account created. You can now sign in.");
+        router.push("/login");
       }
-
-      if (!savedNow) {
-        // Store draft; your /profile/create page can read and post it after login/verification
-        localStorage.setItem("pendingProfileDraft", JSON.stringify(profile));
-      }
-
-      setMsg(
-        "Sign-up successful! We’ve sent a verification code to your email. Please verify to continue."
-      );
-      // Route to a verify page (create one if you haven't) or to login
-      setTimeout(() => router.push("/login"), 1200);
     } catch (err: any) {
+      const code = err?.name || err?.__type || "";
       const message =
-        err?.name === "UsernameExistsException"
-          ? "An account with this email already exists."
+        code === "UsernameExistsException"
+          ? "An account with this email already exists. Try signing in."
+          : code === "InvalidPasswordException"
+          ? "Password doesn’t meet the pool’s policy. Try a stronger password."
+          : code === "InvalidParameterException" &&
+            /SECRET_HASH/i.test(err?.message || "")
+          ? "This app client requires a client secret. Create a Web app client with NO secret and update NEXT_PUBLIC_COGNITO_CLIENT_ID."
           : err?.message || "Sign-up failed. Please try again.";
       setMsg(message);
     } finally {
@@ -137,7 +189,7 @@ export default function SignupClient() {
       {msg && (
         <div
           className={`rounded border p-3 text-sm ${
-            msg.toLowerCase().includes("fail") || msg.toLowerCase().includes("missing") || msg.toLowerCase().includes("exists")
+            /error|fail|missing|exist|secret/i.test(msg)
               ? "border-red-200 bg-red-50 text-red-700"
               : "border-green-200 bg-green-50 text-green-700"
           }`}
@@ -150,7 +202,8 @@ export default function SignupClient() {
       <section className="rounded-md border bg-gray-50 p-4">
         <h2 className="text-base font-semibold">Fast Prefill (optional)</h2>
         <p className="mb-3 text-sm text-gray-600">
-          Upload your resume (PDF/DOCX). We’ll prefill profile fields—you can edit them.
+          Upload your resume (PDF/DOCX). We’ll prefill profile fields—you can
+          edit them.
         </p>
         <ResumeImporter onPrefill={onPrefill} />
       </section>
@@ -160,7 +213,9 @@ export default function SignupClient() {
         <h2 className="text-lg font-semibold">Account</h2>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700">Full Name</label>
+          <label className="block text-sm font-medium text-gray-700">
+            Full Name
+          </label>
           <input
             type="text"
             value={fullName}
@@ -172,7 +227,9 @@ export default function SignupClient() {
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700">Email</label>
+          <label className="block text-sm font-medium text-gray-700">
+            Email
+          </label>
           <input
             type="email"
             value={email}
@@ -185,7 +242,9 @@ export default function SignupClient() {
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700">Password</label>
+          <label className="block text-sm font-medium text-gray-700">
+            Password
+          </label>
           <div className="flex gap-2">
             <input
               type={showPassword ? "text" : "password"}
@@ -204,6 +263,9 @@ export default function SignupClient() {
               {showPassword ? "Hide" : "Show"}
             </button>
           </div>
+          <p className="mt-1 text-xs text-gray-500">
+            Auth flow: <code>{AUTH_FLOW}</code> • Region: <code>{REGION}</code>
+          </p>
         </div>
       </section>
 
@@ -212,7 +274,9 @@ export default function SignupClient() {
         <h2 className="text-lg font-semibold">Profile basics</h2>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700">Title / Role</label>
+          <label className="block text-sm font-medium text-gray-700">
+            Title / Role
+          </label>
           <input
             type="text"
             value={title}
@@ -223,7 +287,9 @@ export default function SignupClient() {
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700">Location</label>
+          <label className="block text-sm font-medium text-gray-700">
+            Location
+          </label>
           <input
             type="text"
             value={location}
@@ -234,7 +300,9 @@ export default function SignupClient() {
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700">Short Bio</label>
+          <label className="block text-sm font-medium text-gray-700">
+            Short Bio
+          </label>
           <textarea
             value={bio}
             onChange={(e) => setBio(e.target.value)}
@@ -245,7 +313,9 @@ export default function SignupClient() {
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700">Profile Image URL</label>
+          <label className="block text-sm font-medium text-gray-700">
+            Profile Image URL
+          </label>
           <input
             type="url"
             value={image}
@@ -259,13 +329,17 @@ export default function SignupClient() {
               src={image}
               alt="Preview"
               className="mt-2 h-16 w-16 rounded-full border object-cover"
-              onError={(e) => ((e.currentTarget.style.display = "none"))}
+              onError={(e) => {
+                (e.currentTarget as HTMLImageElement).style.display = "none";
+              }}
             />
           ) : null}
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700">Region</label>
+          <label className="block text-sm font-medium text-gray-700">
+            Region
+          </label>
           <input
             type="text"
             value={region}
@@ -276,7 +350,9 @@ export default function SignupClient() {
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700">LinkedIn (optional)</label>
+          <label className="block text-sm font-medium text-gray-700">
+            LinkedIn (optional)
+          </label>
           <input
             type="url"
             value={linkedin}
@@ -287,7 +363,9 @@ export default function SignupClient() {
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700">Website (optional)</label>
+          <label className="block text-sm font-medium text-gray-700">
+            Website (optional)
+          </label>
           <input
             type="url"
             value={website}
@@ -306,7 +384,7 @@ export default function SignupClient() {
             checked={agree}
             onChange={(e) => setAgree(e.target.checked)}
           />
-          I agree to the Terms & Privacy Policy.
+          I agree to the Terms &amp; Privacy Policy.
         </label>
 
         <button

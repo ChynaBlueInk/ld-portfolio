@@ -174,7 +174,7 @@ export default function ProfileForm() {
                       <FormItem>
                         <FormLabel>Location</FormLabel>
                         <FormControl>
-                          <Input placeholder="San Francisco, CA" {...field} />
+                          <Input placeholder="AUckland NZ" {...field} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
