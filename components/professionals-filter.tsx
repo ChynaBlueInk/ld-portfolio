@@ -1,14 +1,26 @@
-"use client"
+"use client";
 
-import { useState } from "react"
-import { Button } from "@/components/ui/button"
-import { Checkbox } from "@/components/ui/checkbox"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion"
+import { useEffect, useMemo, useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 
-// Mock data for filters
-const skillsOptions = [
+export type FilterState = {
+  search: string;
+  skills: string[];
+  services: string[];
+};
+
+type Props = {
+  defaultState?: Partial<FilterState>;
+  onChange?: (state: FilterState) => void;
+  skillsOptions?: string[];
+  servicesOptions?: string[];
+};
+
+const DEFAULT_SKILLS = [
   "Instructional Design",
   "eLearning Development",
   "LMS Administration",
@@ -16,42 +28,53 @@ const skillsOptions = [
   "Leadership Development",
   "Content Creation",
   "Learning Analytics",
-  "Virtual Reality Training",
-  "Mobile Learning",
-  "Gamification",
-]
+  "Change Management",
+  "Accessibility (WCAG)",
+  "SCORM",
+  "xAPI",
+];
 
-const servicesOptions = [
+const DEFAULT_SERVICES = [
   "eLearning Course Creation",
   "Workshop Design",
   "LMS Setup & Management",
   "Leadership Training",
-  "Team Building",
   "Content Strategy",
   "Program Evaluation",
   "EdTech Consulting",
-  "Change Management",
-  "Performance Consulting",
-]
+  "Measurement & Evaluation",
+  "Migration",
+];
 
-export default function ProfessionalsFilter() {
-  const [searchTerm, setSearchTerm] = useState("")
-  const [selectedSkills, setSelectedSkills] = useState<string[]>([])
-  const [selectedServices, setSelectedServices] = useState<string[]>([])
+export default function ProfessionalsFilter({
+  defaultState,
+  onChange,
+  skillsOptions = DEFAULT_SKILLS,
+  servicesOptions = DEFAULT_SERVICES,
+}: Props) {
+  const [search, setSearch] = useState(defaultState?.search ?? "");
+  const [skills, setSkills] = useState<string[]>(defaultState?.skills ?? []);
+  const [services, setServices] = useState<string[]>(defaultState?.services ?? []);
 
-  const handleSkillChange = (skill: string) => {
-    setSelectedSkills((prev) => (prev.includes(skill) ? prev.filter((s) => s !== skill) : [...prev, skill]))
-  }
-
-  const handleServiceChange = (service: string) => {
-    setSelectedServices((prev) => (prev.includes(service) ? prev.filter((s) => s !== service) : [...prev, service]))
-  }
+  // Emit changes up
+  useEffect(() => {
+    onChange?.({ search, skills, services });
+  }, [search, skills, services, onChange]);
 
   const clearFilters = () => {
-    setSearchTerm("")
-    setSelectedSkills([])
-    setSelectedServices([])
-  }
+    setSearch("");
+    setSkills([]);
+    setServices([]);
+  };
+
+  const toggle = (list: string[], value: string, setter: (v: string[]) => void) => {
+    setter(list.includes(value) ? list.filter((s) => s !== value) : [...list, value]);
+  };
+
+  // Keep list order stable but unique
+  const uniq = (arr: string[]) => Array.from(new Set(arr));
+  const skillOpts = useMemo(() => uniq(skillsOptions), [skillsOptions]);
+  const serviceOpts = useMemo(() => uniq(servicesOptions), [servicesOptions]);
 
   return (
     <div className="sticky top-4 space-y-6">
@@ -69,9 +92,9 @@ export default function ProfessionalsFilter() {
             <Input
               type="text"
               id="search"
-              placeholder="Search by name or keyword"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder="Search by name, title, or keyword"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
               className="w-full"
             />
           </div>
@@ -82,12 +105,12 @@ export default function ProfessionalsFilter() {
             <AccordionTrigger className="text-sm font-medium">Skills</AccordionTrigger>
             <AccordionContent>
               <div className="space-y-2">
-                {skillsOptions.map((skill) => (
+                {skillOpts.map((skill) => (
                   <div key={skill} className="flex items-center space-x-2">
                     <Checkbox
                       id={`skill-${skill}`}
-                      checked={selectedSkills.includes(skill)}
-                      onCheckedChange={() => handleSkillChange(skill)}
+                      checked={skills.includes(skill)}
+                      onCheckedChange={() => toggle(skills, skill, setSkills)}
                     />
                     <Label
                       htmlFor={`skill-${skill}`}
@@ -105,18 +128,18 @@ export default function ProfessionalsFilter() {
             <AccordionTrigger className="text-sm font-medium">Services</AccordionTrigger>
             <AccordionContent>
               <div className="space-y-2">
-                {servicesOptions.map((service) => (
-                  <div key={service} className="flex items-center space-x-2">
+                {serviceOpts.map((svc) => (
+                  <div key={svc} className="flex items-center space-x-2">
                     <Checkbox
-                      id={`service-${service}`}
-                      checked={selectedServices.includes(service)}
-                      onCheckedChange={() => handleServiceChange(service)}
+                      id={`service-${svc}`}
+                      checked={services.includes(svc)}
+                      onCheckedChange={() => toggle(services, svc, setServices)}
                     />
                     <Label
-                      htmlFor={`service-${service}`}
+                      htmlFor={`service-${svc}`}
                       className="text-sm font-normal leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
                     >
-                      {service}
+                      {svc}
                     </Label>
                   </div>
                 ))}
@@ -130,5 +153,5 @@ export default function ProfessionalsFilter() {
         </Button>
       </div>
     </div>
-  )
+  );
 }
