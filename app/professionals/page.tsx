@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useMemo, useState, Suspense } from "react";
-import { useSearchParams } from "next/navigation";
+export const dynamic = "force-dynamic";
+
+import { useEffect, useMemo, useState } from "react";
 import ProfessionalsFilter, { type FilterState } from "@/components/professionals-filter";
 import ProfessionalsList from "@/components/professionals-list";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -59,29 +60,19 @@ function dedupeById<T extends { id: string }>(arr: T[]): T[] {
   return out;
 }
 
-/** Default export: wrapper with Suspense.
- *  The inner component uses useSearchParams(), which must be inside a Suspense boundary.
- */
 export default function ProfessionalsPage() {
-  return (
-    <Suspense fallback={<ListSkeleton />}>
-      <ProfessionalsPageInner />
-    </Suspense>
-  );
-}
-
-/** Inner component that does all the data work and uses useSearchParams */
-function ProfessionalsPageInner() {
-  const params = useSearchParams();
-  const forcePreview = PREVIEW_FROM_ENV || params.get("preview") === "1";
-
+  const [forcePreview, setForcePreview] = useState<boolean>(PREVIEW_FROM_ENV);
   const [all, setAll] = useState<Professional[]>([]);
   const [loading, setLoading] = useState(true);
-  const [filters, setFilters] = useState<FilterState>({
-    search: "",
-    skills: [],
-    services: [],
-  });
+  const [filters, setFilters] = useState<FilterState>({ search: "", skills: [], services: [] });
+
+  // Read ?preview=1 from URL on client (no useSearchParams)
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const sp = new URLSearchParams(window.location.search);
+      if (sp.get("preview") === "1") setForcePreview(true);
+    }
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -113,7 +104,7 @@ function ProfessionalsPageInner() {
       // 3) Merge with shared mocks so you always see at least 6 rich entries
       let merged = dedupeById<Professional>([...normalized, ...MOCK_PROFESSIONALS]);
 
-      // 4) Optional: if nothing loaded, check window.__MOCK_PROFESSIONALS__
+      // 4) Optional: check window.__MOCK_PROFESSIONALS__ if empty
       if (merged.length === 0 && typeof window !== "undefined") {
         const injected = (window as any).__MOCK_PROFESSIONALS__;
         if (Array.isArray(injected)) {
@@ -133,7 +124,7 @@ function ProfessionalsPageInner() {
     };
   }, [forcePreview]);
 
-  // Derive filter options from the dataset (API+mock)
+  // Derive filter options
   const skillsOptions = useMemo(
     () => Array.from(new Set(all.flatMap((p) => p.skills || []))).sort(),
     [all]
