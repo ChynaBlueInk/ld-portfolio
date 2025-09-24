@@ -2,19 +2,13 @@
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
-import dynamicClient from "next/dynamic";
-import { Suspense } from "react";
-
-// Load the client component only on the client
-const ProsPageClient = dynamicClient(() => import("./ProsPageClient"), {
-  ssr: false,
-  loading: () => null,
-});
-
 export default function Page() {
   return (
-    <Suspense fallback={null}>
-      <ProsPageClient />
-    </Suspense>
+    <div style={{ padding: "2rem", fontFamily: "system-ui" }}>
+      <h1 style={{ margin: 0 }}>Professionals</h1>
+      <p style={{ color: "#555" }}>
+        Temporary placeholder to unblock deploys. (No client hooks here.)
+      </p>
+    </div>
   );
 }
