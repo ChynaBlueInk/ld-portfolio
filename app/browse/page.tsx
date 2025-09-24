@@ -1,5 +1,4 @@
-import { redirect } from "next/navigation"
-
-export default function BrowseRedirect() {
-  redirect("/professionals")
+// app/browse/page.tsx
+export default function BrowsePage() {
+  return null; // or simple message
 }
