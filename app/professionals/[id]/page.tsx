@@ -22,8 +22,9 @@ import {
   Globe,
   User2,
 } from "lucide-react";
-import type { Professional, Service, PortfolioItem, ExperienceItem, Testimonial, Contact } from "@/app/professionals/_mock";
-import { MOCK_PROFESSIONALS } from "@/app/professionals/_mock";
+import type { Professional, Service, PortfolioItem, ExperienceItem, Testimonial, Contact } from "../_mock";
+import { MOCK_PROFESSIONALS } from "../_mock";
+
 
 /** Allow API variance but render everything the form collects */
 type ExtProfessional = Professional & {
