@@ -1,3 +1,4 @@
+// components/header.tsx
 "use client";
 
 import { useEffect, useState } from "react";
@@ -6,10 +7,14 @@ import { usePathname } from "next/navigation";
 import { Menu, X } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 
+// ⬇️ Public preview flag: set to true to hide Log in / Sign up everywhere
+const PUBLIC_PREVIEW = true;
+
 // base links everyone sees
 const navigation = [
   { name: "Home", href: "/" },
-  { name: "Browse Professionals", href: "/browse" },
+  // ⬇️ go directly to /professionals (avoid extra redirect)
+  { name: "Browse Professionals", href: "/professionals" },
   { name: "Talent Requests", href: "/talent-requests" },
   { name: "How It Works", href: "/how-it-works" },
   { name: "Contact", href: "/contact" },
@@ -62,9 +67,7 @@ export default function Header() {
         <div className="flex lg:flex-1">
           <Link href="/" className="-m-1.5 p-1.5">
             <span className="sr-only">L&D Talent Hub</span>
-            <h1 className="text-2xl font-bold text-indigo-600">
-              L&D Talent Hub
-            </h1>
+            <h1 className="text-2xl font-bold text-indigo-600">L&D Talent Hub</h1>
           </Link>
         </div>
 
@@ -97,6 +100,7 @@ export default function Header() {
           ))}
 
           {user &&
+            !PUBLIC_PREVIEW &&
             authedNavigation.map((item) => (
               <Link
                 key={item.name}
@@ -112,9 +116,16 @@ export default function Header() {
             ))}
         </div>
 
-        {/* Desktop auth buttons */}
+        {/* Desktop right side */}
         <div className="hidden lg:flex lg:flex-1 lg:justify-end lg:gap-x-4">
-          {user ? (
+          {PUBLIC_PREVIEW ? (
+            <Link
+              href="/professionals"
+              className="rounded border border-gray-300 px-4 py-2 text-lg text-gray-700 hover:bg-gray-100"
+            >
+              Browse
+            </Link>
+          ) : user ? (
             <>
               <span className="text-lg text-gray-700 flex items-center gap-2">
                 {user.fullName || user.email}
@@ -159,9 +170,7 @@ export default function Header() {
             <div className="flex items-center justify-between">
               <Link href="/" className="-m-1.5 p-1.5">
                 <span className="sr-only">L&D Talent Hub</span>
-                <h1 className="text-xl font-bold text-indigo-600">
-                  L&D Talent Hub
-                </h1>
+                <h1 className="text-xl font-bold text-indigo-600">L&D Talent Hub</h1>
               </Link>
               <button
                 type="button"
@@ -189,7 +198,7 @@ export default function Header() {
                       {item.name}
                     </Link>
                   ))}
-                  {user &&
+                  {user && !PUBLIC_PREVIEW &&
                     authedNavigation.map((item) => (
                       <Link
                         key={item.name}
@@ -206,7 +215,15 @@ export default function Header() {
                     ))}
                 </div>
                 <div className="py-6 space-y-2">
-                  {user ? (
+                  {PUBLIC_PREVIEW ? (
+                    <Link
+                      href="/professionals"
+                      className="-mx-3 block rounded-lg px-3 py-2.5 text-lg font-semibold leading-7 text-gray-900 hover:bg-gray-50"
+                      onClick={() => setMobileMenuOpen(false)}
+                    >
+                      Browse
+                    </Link>
+                  ) : user ? (
                     <>
                       <p className="px-3 py-2 text-lg font-semibold text-gray-700 flex items-center gap-2">
                         {user.fullName || user.email}
