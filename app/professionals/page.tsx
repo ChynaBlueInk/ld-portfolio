@@ -3,10 +3,18 @@ export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
 import dynamicClient from "next/dynamic";
+import { Suspense } from "react";
 
-// Disable SSR for this route; render the client component only
-const ProsPageClient = dynamicClient(() => import("./ProsPageClient"), { ssr: false });
+// Load the client component only on the client
+const ProsPageClient = dynamicClient(() => import("./ProsPageClient"), {
+  ssr: false,
+  loading: () => null,
+});
 
 export default function Page() {
-  return <ProsPageClient />;
+  return (
+    <Suspense fallback={null}>
+      <ProsPageClient />
+    </Suspense>
+  );
 }
